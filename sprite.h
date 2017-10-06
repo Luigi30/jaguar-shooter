@@ -18,6 +18,8 @@ extern const SpriteGraphic * SPRITES_LIST[];
 void GPU_LOAD_SPRITE_PROGRAM();
 void GPU_START(uint8_t *function);
 
+void GPU_do_blit_sprite(uint8_t *destination, Coordinate destination_coordinate, uint8_t *source, const SpriteGraphic *sprite);
+
 extern uint8_t gpu_sprite_program[];
 extern uint8_t gpu_sprite_program_start[];
 extern uint8_t gpu_sprite_program_end[];

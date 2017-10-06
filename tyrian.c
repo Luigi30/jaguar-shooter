@@ -30,10 +30,66 @@ Bullet *Bullet_Create(Coordinate _location, SpriteGraphic _image, Coordinate _de
   return bullet;
 }
 
-void Bullet_Insert(Bullet **head, Bullet *new)
+void Bullets_Insert(Bullet **head, Bullet *new)
 {
   new->next = *head;
   *head = new;
+}
+
+void Bullets_Update(Bullet **head)
+{
+  Bullet *current = NULL;
+  Bullet *previous = NULL;
+
+  if(*head != NULL){
+    //skunkCONSOLEWRITE("*** start bullet list ***\n");
+
+    for(current = *head; current != NULL; previous = current, current = current->next)
+      {	
+	//	sprintf(skunkoutput, "bullet: addr %08p, location (%03d,%03d)\n", current, current->location.x, current->location.y);
+	//skunkCONSOLEWRITE(skunkoutput);
+
+	current->location.y += current->deltaPerFrame.y;
+	if(current->location.y < 10)
+	  {
+	    if(previous != NULL)
+	      {
+		//If there's a previous node, set its next ptr to current->next
+		previous->next = current->next;
+	      }
+	    else 
+	      {
+		//If there is no previous node, then the list's head becomes current->next.
+		*head = current->next;
+	      }
+
+	    //Free the current node.
+	    Bullet *temp = current;
+	    free(temp);
+
+	    //Update the current ptr so we advance to the next node if one exists.
+	    current = previous;
+	    
+	    if(current == NULL){
+	      break; //If there's no current ptr, end list processing.
+	    }
+	  }
+      }
+
+    //skunkCONSOLEWRITE("*** end of bullet list ***\n");
+  }
+}
+
+void Bullets_Draw(Bullet **head)
+{
+  Bullet *current = *head;
+
+  while(current != NULL) {
+    GPU_do_blit_sprite(back_buffer, current->location, shipsheet, SPRITES_find("PulseBullet1"));
+
+    current = current->next;
+  }
+  
 }
 
 /*******/
@@ -64,17 +120,7 @@ uint16_t jag_custom_interrupt_handler()
   return 0;
 }
 
-void GPU_do_blit_sprite(uint8_t *destination, Coordinate destination_coordinate, uint8_t *source, const SpriteGraphic *sprite)
-{
-  jag_gpu_wait();
-  
-  GPU_blit_destination = destination;
-  GPU_blit_destination_coordinate = (Coordinate){ .x = destination_coordinate.x, .y = destination_coordinate.y };
-  GPU_blit_source = source;
-  GPU_blit_sprite = sprite;
 
-  GPU_START(gpu_sprite_test);
-}
 
 void blit_sprite(uint8_t *destination, Coordinate destination_coordinate, uint8_t *source, const SpriteGraphic *sprite)
 {  
@@ -235,6 +281,8 @@ int main() {
       {
 
       }
+
+    Bullets_Update(&bullets_list);
     
     /* Triggers once per frame while these are pressed */
     if(stick0_lastread & STICK_UP) {
@@ -275,7 +323,7 @@ int main() {
 	if(~stick0_lastread & STICK_A)
 	  {
 	    Coordinate bullet_coords = { .x = player_ship_coords.x + 6, .y = player_ship_coords.y };
-	    Bullet_Insert(&bullets_list,
+	    Bullets_Insert(&bullets_list,
 			  Bullet_Create(bullet_coords, SPR_PulseBullet_1, (Coordinate){ .x = 0, .y = -4 }, true)
 			  );
 	  }
@@ -296,6 +344,10 @@ int main() {
     }
 
     GPU_do_blit_sprite(back_buffer, player_ship_coords, shipsheet, SPRITES_find("USPTalon"));
+
+    Bullets_Draw(&bullets_list);
+    
+    /*
     if(bullets_list != NULL)
       {
 	Bullet *bullet = bullets_list;
@@ -306,6 +358,7 @@ int main() {
 	else
 	  bullets_list = NULL;
       }
+    */
     
     //MOBJ_Print_Position(mobj_lottoballs[0]);
   }

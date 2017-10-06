@@ -52,3 +52,15 @@ const SpriteGraphic * SPRITES_find(char *name)
   skunkCONSOLEWRITE(skunk);
   return NULL;
 }
+
+void GPU_do_blit_sprite(uint8_t *destination, Coordinate destination_coordinate, uint8_t *source, const SpriteGraphic *sprite)
+{
+  jag_gpu_wait();
+  
+  GPU_blit_destination = destination;
+  GPU_blit_destination_coordinate = (Coordinate){ .x = destination_coordinate.x, .y = destination_coordinate.y };
+  GPU_blit_source = source;
+  GPU_blit_sprite = sprite;
+
+  GPU_START(gpu_sprite_test);
+}
