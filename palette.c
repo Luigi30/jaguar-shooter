@@ -1,4 +1,4 @@
-#include "palette.h"
+#include "gfx/palette.h"
 
 Palette *jaguar_palettes;
 char skunkout[256];

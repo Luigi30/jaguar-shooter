@@ -1,4 +1,4 @@
-#include "blit.h"
+#include "gfx/blit.h"
 
 #include "images.h"
 

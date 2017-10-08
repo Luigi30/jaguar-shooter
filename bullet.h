@@ -7,7 +7,7 @@
 
 #include "shared.h"
 #include "jaglib.h"
-#include "sprite.h"
+#include "gfx/sprite.h"
 #include "images.h"
 
 typedef struct bullet_t {

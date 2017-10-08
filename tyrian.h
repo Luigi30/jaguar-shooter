@@ -9,12 +9,13 @@
 
 #include "shared.h"
 
-#include "blit.h"
+#include "gfx/blit.h"
+#include "gfx/palette.h"
+#include "gfx/sprite.h"
+
 #include "images.h"
 #include "mobj.h"
-#include "sprite.h"
 #include "fixed.h"
-#include "palette.h"
 #include "bullet.h"
 
 #define FILL_LONG_WITH_BYTE(b) (b<<24 | b<<16 | b<<8 | b)
