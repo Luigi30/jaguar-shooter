@@ -6,6 +6,7 @@
 
 #define MMIO16(x)   (*(vuint16_t *)(x))
 #define MMIO32(x)   (*(vuint32_t *)(x))
+#define MMIO64(x)   (*(vuint64_t *)(x))
 
 typedef struct coordinate_t {
   uint16_t x, y;

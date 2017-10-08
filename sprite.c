@@ -1,6 +1,45 @@
 #include "sprite.h"
 
-/* GPU */
+SpriteEntry *SpriteDisplay_List = NULL;
+
+/* Display list functions */
+SpriteEntry *SpriteEntry_Create(Coordinate _location, SpriteGraphic *_image, Coordinate _deltaPerFrame, bool _isPlayer)
+{
+  SpriteEntry *sprite_entry = calloc(1, sizeof(SpriteEntry));
+
+  sprite_entry->next = NULL;
+  sprite_entry->location = (Coordinate){ .x = _location.x, .y = _location.y };
+  sprite_entry->image = (SpriteGraphic){ .location = _image->location, .size = _image->size };
+  sprite_entry->deltaPerFrame = (Coordinate){ .x = _deltaPerFrame.x, .y = _deltaPerFrame.y };
+  sprite_entry->isPlayer = _isPlayer;
+
+  strcpy(sprite_entry->image.name, _image->name);
+
+  return sprite_entry;
+}
+
+void SpriteEntry_Insert(SpriteEntry **head, SpriteEntry *new)
+{
+  new->next = *head;
+  *head = new;
+}
+
+void SpriteEntry_Draw(SpriteEntry **head, uint8_t *buffer)
+{
+  //GPU_sprite_display_list_head = *head;
+  //GPU_START(GPU_process_display_list);
+
+  SpriteEntry *current = *head;
+
+  while(current != NULL) {
+    GPU_do_blit_sprite(buffer, current->location, shipsheet, SPRITES_find(current->image.name));
+
+    current = current->next;
+  }
+
+}
+
+/* GPU functions */
 void GPU_LOAD_SPRITE_PROGRAM() {
   skunkCONSOLEWRITE("GPU_LOAD_SPRITE_PROGRAM(): beginning upload\n");
   jag_dsp_load(G_RAM, gpu_sprite_program, gpu_sprite_program_end-gpu_sprite_program);
@@ -32,6 +71,7 @@ const SpriteGraphic * SPRITES_LIST[] = {
   &SPR_PulseBullet_3,
   &SPR_PulseBullet_4,
   &SPR_PulseBullet_5,
+  &SPR_NME_GrayJet,
   NULL
 };
 

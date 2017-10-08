@@ -12,6 +12,10 @@ static const SpriteGraphic SPR_USPTalon = { .name = "USPTalon",
 static const SpriteGraphic SPR_BigRedBadGuy = { .name = "BigRedBadGuy",
 						.location = { .x = 0, .y = 337 },
 						.size = { .x = 144, .y = 111 } };
+						
+static const SpriteGraphic SPR_NME_GrayJet = { .name = "NME_GrayJet",
+						.location = { .x = 24, .y = 280 },
+						.size = { .x = 24, .y = 28 } };
 
 /* bullets */
 static const SpriteGraphic SPR_PulseBullet_1 = { .name = "PulseBullet1",

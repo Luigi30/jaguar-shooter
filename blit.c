@@ -3,7 +3,7 @@
 #include "images.h"
 
 
-void BLIT_16x16_text_string(uint8_t *destination, uint8_t x, uint8_t y, char *str)
+void BLIT_16x16_text_string(uint8_t *destination, uint16_t x, uint16_t y, char *str)
 {
   for(int i=0;i<strlen(str);i++)
     {      
@@ -12,7 +12,7 @@ void BLIT_16x16_text_string(uint8_t *destination, uint8_t x, uint8_t y, char *st
     }
 }
 
-void BLIT_8x8_text_string(uint8_t *destination, uint8_t x, uint8_t y, char *str)
+void BLIT_8x8_text_string(uint8_t *destination, uint16_t x, uint16_t y, char *str)
 {
   for(int i=0;i<strlen(str);i++)
     {      
@@ -22,7 +22,7 @@ void BLIT_8x8_text_string(uint8_t *destination, uint8_t x, uint8_t y, char *str)
 }
 
 /* Font blitting */
-void BLIT_16x16_font_glyph(uint8_t *destination, uint8_t x, uint8_t y, uint8_t *source, uint8_t c)
+void BLIT_16x16_font_glyph(uint8_t *destination, uint16_t x, uint16_t y, uint8_t *source, uint8_t c)
 {
   //Blit a glyph from an 16x16 font sheet.
   //A sheet is 256x256px = 16x16 glyphs.
@@ -47,7 +47,7 @@ void BLIT_16x16_font_glyph(uint8_t *destination, uint8_t x, uint8_t y, uint8_t *
   MMIO32(B_CMD)     = SRCEN | DSTEN | UPDA1 | UPDA2 | LFU_REPLACE;
 }
 
-void BLIT_8x8_font_glyph(uint8_t *destination, uint8_t x, uint8_t y, uint8_t *source, uint8_t c)
+void BLIT_8x8_font_glyph(uint8_t *destination, uint16_t x, uint16_t y, uint8_t *source, uint8_t c)
 {
   //Blit a glyph from an 8x8 font sheet.
   //A sheet is 128x128px = 16x16 glyphs.
@@ -72,7 +72,7 @@ void BLIT_8x8_font_glyph(uint8_t *destination, uint8_t x, uint8_t y, uint8_t *so
   MMIO32(B_CMD)     = SRCEN | DSTEN | UPDA1 | UPDA2 | LFU_REPLACE;
 }
 
-void BLIT_rectangle_solid(uint8_t *buffer, uint16_t topleft_x, uint16_t topleft_y, uint16_t width, uint16_t height, uint16_t color_index)
+void BLIT_rectangle_solid(uint8_t *buffer, uint16_t topleft_x, uint16_t topleft_y, uint16_t width, uint16_t height, uint64_t pattern)
 {
   jag_wait_blitter_ready(); //don't do this until the blitter is available
   
@@ -83,50 +83,50 @@ void BLIT_rectangle_solid(uint8_t *buffer, uint16_t topleft_x, uint16_t topleft_
   MMIO32(A1_FINC)	= 0;
   MMIO32(A1_FLAGS)	= PITCH1 | PIXEL8 | WID320 | XADDPHR | YADD0;
   MMIO32(A1_STEP)	= BLIT_XY(CONSOLE_BMP_WIDTH-width, 0);
-  MMIO32(B_PATD)	= color_index;
+  MMIO64(B_PATD)	= pattern;
   MMIO32(B_COUNT)	= BLIT_XY(width, height);
   MMIO32(B_CMD)		= PATDSEL | UPDA1 | LFU_S;
 }
 
 void BLIT_line(uint8_t *buffer, uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint16_t color_index)
 {	
-	if(x1 > x2) //Swap the coordinates so we always go left to right.
-	{
-		SWAP(uint16_t, x1, x2);
-		SWAP(uint16_t, y1, y2);
-	}
+  if(x1 > x2) //Swap the coordinates so we always go left to right.
+    {
+      SWAP(uint16_t, x1, x2);
+      SWAP(uint16_t, y1, y2);
+    }
 
-	uint16_t x_distance = abs(x2-x1);
-	uint16_t y_distance = abs(y2-y1);
-	bool y_negative;
+  uint16_t x_distance = abs(x2-x1);
+  uint16_t y_distance = abs(y2-y1);
+  bool y_negative;
 	
-	if((y2 - y1) < 0) {
-		y_negative = true;
-	} else {
-		y_negative = false;
-	}
+  if((y2 - y1) < 0) {
+    y_negative = true;
+  } else {
+    y_negative = false;
+  }
 	
-	FIXED_32 slope = FIXED_DIV(INT_TO_FIXED(x_distance), INT_TO_FIXED(y_distance));
+  FIXED_32 slope = FIXED_DIV(INT_TO_FIXED(x_distance), INT_TO_FIXED(y_distance));
 	
-	MMIO32(A1_BASE)		= (long)buffer;
-	MMIO32(A1_PIXEL)	= BLIT_XY(x1, y1);
-	MMIO32(A1_FPIXEL)	= 0;
-	MMIO32(A1_INC)		= BLIT_XY(FIXED_INT(slope), 0);
-	MMIO32(A1_FINC)		= BLIT_XY(FIXED_FRAC(slope), 0);
-	MMIO32(A1_FLAGS)	= PITCH1 | PIXEL8 | WID320 | XADDINC;
+  MMIO32(A1_BASE)	= (long)buffer;
+  MMIO32(A1_PIXEL)	= BLIT_XY(x1, y1);
+  MMIO32(A1_FPIXEL)	= 0;
+  MMIO32(A1_INC)	= BLIT_XY(FIXED_INT(slope), 0);
+  MMIO32(A1_FINC)	= BLIT_XY(FIXED_FRAC(slope), 0);
+  MMIO32(A1_FLAGS)	= PITCH1 | PIXEL8 | WID320 | XADDINC;
 	
-	if(y_negative) 
-	{
-		MMIO32(A1_STEP)	= BLIT_XY(0,-1);
-	}
-	else
-	{
-		MMIO32(A1_STEP)	= BLIT_XY(0,1);
-	}
+  if(y_negative) 
+    {
+      MMIO32(A1_STEP)	= BLIT_XY(0,-1);
+    }
+  else
+    {
+      MMIO32(A1_STEP)	= BLIT_XY(0,1);
+    }
 	
-	MMIO32(B_PATD)		= color_index;
-	MMIO32(B_COUNT)		= BLIT_XY(1, y_distance+1);
-	MMIO32(B_CMD)		= PATDSEL | UPDA1 | UPDA1F | LFU_S;
+  MMIO32(B_PATD)		= color_index;
+  MMIO32(B_COUNT)		= BLIT_XY(1, y_distance+1);
+  MMIO32(B_CMD)		= PATDSEL | UPDA1 | UPDA1F | LFU_S;
 }
 
 void BLIT_init_blitter(){

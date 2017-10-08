@@ -53,15 +53,6 @@ _gpu_sprite_test::
 	bset    #14,r0
 	store   r0,(r1)           ; Switch the GPU/DSP to bank 1
 	
-	movei	#0,TEMP1
-	movei	#0,TEMP2
-	movei	#0,r10
-	movei	#0,r11
-	movei	#0,r12
-	movei	#0,r13
-	movei	#0,r14
-	movei	#0,r18
-
 .load_blitter_registers:
 	movei	#B_CMD,r30
 	movei	#B_COUNT,r29
@@ -94,6 +85,9 @@ _gpu_sprite_test::
 	movei	#0,TEMP1
 	store	TEMP1,(R_A1_FPIXEL) 	;always 0
 
+	movei	#$00C80140,TEMP1
+	store	TEMP1,(R_A1_CLIP)
+	
 	movei	#PITCH1|PIXEL8|WID320|XADDPIX|YADD0,TEMP1
 	store	TEMP1,(R_A1_FLAGS)
 
@@ -119,7 +113,7 @@ _gpu_sprite_test::
 	store	TEMP2,(R_A2_PIXEL) 	;swap and store it
 
 	movei	#OFFSET_SpriteGraphic_Size,r14
-	load	(r13),r10		;fetch the pointer
+*	r10 still contains the correct pointer (r13)
 	load	(r14+r10),TEMP1		;load the Size field
 	TEMP1_SWAP_WORDS		;swap hi and lo, result in TEMP2
 	movei	#$0000FFFF,TEMP1
@@ -132,7 +126,7 @@ _gpu_sprite_test::
 	store	TEMP1,(R_A2_FLAGS)
 
 	movei	#OFFSET_SpriteGraphic_Size,r14
-	load	(r13),r10		;fetch the pointer
+*	r10 still contains the correct pointer (r13) 
 	load	(r14+r10),TEMP1		;load the Size field
 	TEMP1_SWAP_WORDS
 	store	TEMP2,(R_B_COUNT)
@@ -144,15 +138,66 @@ _gpu_sprite_test::
 	StopGPU
 
 	.long
-	;; Variables
 _GPU_blit_destination::			dc.l	0 ; pointer
 _GPU_blit_destination_coordinate::	dc.l	0 ; uint16_t x, uint16_t y
 _GPU_blit_source::			dc.l	0 ; pointer
-_GPU_blit_sprite::			dc.l	0 ; pointer
+_GPU_blit_sprite::			dc.l	0 ; pointer to SpriteGraphic
 
+;;; GPU_process_display_list - doesn't work yet
+
+	.phrase
+_GPU_process_display_list::
+	movei	#_GPU_sprite_display_list_head,r10
+	movei	#_GPU_sprite_display_list_current,r11
+	load	(r10),r16	; load head into a buffer
+	store	r16,(r11)
+	
+	movei	#.done,JUMPADDR
+	cmpq	#0,r10		; is the display list empty?
+	jump	eq,(JUMPADDR)
+	nop
+
+	movei	#.process_sprite,JUMPADDR
+	
+.process_sprite:
+
+	;; ...
+
+	;; Advance current ptr to next node
+	load	(r16),TEMP1	;get the next node
+	store	TEMP1,(r11)	;store in current
+
+	addq	#1,r17
+
+	;; Is current NULL?
+	cmpq	#0,TEMP1
+	jump	ne,(JUMPADDR)
+	nop	
+	
+.done:
+	StopGPU
+
+	.long
+	;; Variables
+_GPU_sprite_display_list_head::		dc.l	0 ; pointer to SpriteEntry
+_GPU_sprite_display_list_current::	dc.l	0 ; pointer to SpriteEntry
+	
+
+;;; SpriteGraphic struct
+	OFFSET_SpriteGraphic_START	.equ	0
 	OFFSET_SpriteGraphic_Name	.equ	0
 	OFFSET_SpriteGraphic_Location	.equ	16
 	OFFSET_SpriteGraphic_Size	.equ	20
+	OFFSET_SpriteGraphic_END	.equ	24
+
+;;; SpriteEntry struct
+	OFFSET_SpriteEntry_START	.equ	0
+	OFFSET_SpriteEntry_Next		.equ	0
+	OFFSET_SpriteEntry_Location	.equ	4
+	OFFSET_SpriteEntry_Image	.equ	8
+	OFFSET_SpriteEntry_DeltaPerFrame .equ	32
+	OFFSET_SpriteEntry_IsPlayer	.equ	36
+	OFFSET_SpriteEntry_END		.equ	37
 	
 	.68000 			;End section
 _gpu_sprite_program_end::

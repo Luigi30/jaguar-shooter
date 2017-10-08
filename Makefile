@@ -1,9 +1,9 @@
 BINFILE = tyrian.jag
 
 BINPATH = bin/
-OBJPATH = obj/
+OBJPATH = ../obj/
 
-OBJFILES = $(OBJPATH)tyrian.o $(OBJPATH)sprite.o $(OBJPATH)fixed.o $(OBJPATH)blit.o $(OBJPATH)sprites.o $(OBJPATH)mobj.o $(OBJPATH)images.o $(OBJPATH)palette.o $(OBJPATH)paldata.o
+OBJFILES = $(OBJPATH)tyrian.o $(OBJPATH)sprite.o $(OBJPATH)fixed.o $(OBJPATH)blit.o $(OBJPATH)bullet.o $(OBJPATH)sprites.o $(OBJPATH)mobj.o $(OBJPATH)images.o $(OBJPATH)palette.o $(OBJPATH)paldata.o
 IMAGES = images/atarifont.s images/atarifont8x8.s images/shipsheet.s
 
 UNAME := $(shell uname)
@@ -36,10 +36,12 @@ clean:
 	-rm bin/*
 
 run:
-	#Adjust this path to your configuration.
+        #Adjust this path to your configuration.
 	$(VJAGFOLDER)virtualjaguar.exe --alpine C:\jaguar\tyrian\src\bin\tyrian.jag
 
 upload:
+	-jcp -r
+	sleep 2
 	jcp -c $(BINPATH)$(BINFILE)
 
 $(OBJPATH)%.o: %.c
@@ -50,16 +52,16 @@ $(OBJPATH)%.o: %.asm
 
 $(OBJPATH)%.o: %.tom.s
 	$(AS) $? -I$(JAGINCLUDE) -Fvobj -mgpu -o $@
-	
+
 $(OBJPATH)%.o: %.jerry.s
 	$(AS) -L $@.lst $? -I$(JAGINCLUDE) -Fvobj -mdsp -o $@
 
 #Images
 images/atarifont.s: images/atarifont.gif
 	$(CONVERT) --opt-clut --clut $? 
-	
+
 images/atarifont8x8.s: images/atarifont8x8.bmp
 	$(CONVERT) --opt-clut --clut $? 
-	
+
 images/shipsheet.s: images/shipsheet.bmp
 	$(CONVERT) --opt-clut --clut $? 

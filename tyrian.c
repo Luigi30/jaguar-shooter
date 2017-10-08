@@ -2,97 +2,9 @@
    Objects on the stack are word-aligned. */
 
 #include "tyrian.h"
+#include <stdbool.h>
 
 char skunkoutput[256];
-
-/*******/
-
-typedef struct bullet_t {
-  struct bullet_t *next;
-  
-  Coordinate location;
-  SpriteGraphic image;
-  Coordinate deltaPerFrame;
-  bool isPlayer;
-} Bullet;
-Bullet *bullets_list;
-
-Bullet *Bullet_Create(Coordinate _location, SpriteGraphic _image, Coordinate _deltaPerFrame, bool _isPlayer)
-{
-  Bullet *bullet = calloc(1, sizeof(Bullet));
-
-  bullet->next = NULL;
-  bullet->location = (Coordinate){ .x = _location.x, .y = _location.y };
-  bullet->image = (SpriteGraphic){ .location = _image.location, .size = _image.size };
-  bullet->deltaPerFrame = (Coordinate){ .x = _deltaPerFrame.x, .y = _deltaPerFrame.y };
-  bullet->isPlayer = _isPlayer;
-
-  return bullet;
-}
-
-void Bullets_Insert(Bullet **head, Bullet *new)
-{
-  new->next = *head;
-  *head = new;
-}
-
-void Bullets_Update(Bullet **head)
-{
-  Bullet *current = NULL;
-  Bullet *previous = NULL;
-
-  if(*head != NULL){
-    //skunkCONSOLEWRITE("*** start bullet list ***\n");
-
-    for(current = *head; current != NULL; previous = current, current = current->next)
-      {	
-	//	sprintf(skunkoutput, "bullet: addr %08p, location (%03d,%03d)\n", current, current->location.x, current->location.y);
-	//skunkCONSOLEWRITE(skunkoutput);
-
-	current->location.y += current->deltaPerFrame.y;
-	if(current->location.y < 10)
-	  {
-	    if(previous != NULL)
-	      {
-		//If there's a previous node, set its next ptr to current->next
-		previous->next = current->next;
-	      }
-	    else 
-	      {
-		//If there is no previous node, then the list's head becomes current->next.
-		*head = current->next;
-	      }
-
-	    //Free the current node.
-	    Bullet *temp = current;
-	    free(temp);
-
-	    //Update the current ptr so we advance to the next node if one exists.
-	    current = previous;
-	    
-	    if(current == NULL){
-	      break; //If there's no current ptr, end list processing.
-	    }
-	  }
-      }
-
-    //skunkCONSOLEWRITE("*** end of bullet list ***\n");
-  }
-}
-
-void Bullets_Draw(Bullet **head)
-{
-  Bullet *current = *head;
-
-  while(current != NULL) {
-    GPU_do_blit_sprite(back_buffer, current->location, shipsheet, SPRITES_find("PulseBullet1"));
-
-    current = current->next;
-  }
-  
-}
-
-/*******/
 
 op_stop_object *make_stopobj() {	
   op_stop_object *stopobj = calloc(1,sizeof(op_stop_object));
@@ -109,10 +21,12 @@ uint16_t jag_custom_interrupt_handler()
     {      
       //The height field needs to be reset each frame for each mobj. Thanks Atari.
       mobj_background.graphic->p0.height = 200;
-      mobj_font.graphic->p0.height = 200;  
+      mobj_font.graphic->p0.height = 200;
+      mobj_sprites.graphic->p0.height = 200; 
 
       mobj_background.graphic->p0.data = (uint32_t)front_buffer >> 3;
       mobj_font.graphic->p0.data = (uint32_t)text_buffer >> 3;
+      mobj_sprites.graphic->p0.data = (uint32_t)sprite_buffer >> 3;
 
       MMIO16(INT2) = 0;
       return C_VIDCLR;
@@ -120,35 +34,20 @@ uint16_t jag_custom_interrupt_handler()
   return 0;
 }
 
-
-
-void blit_sprite(uint8_t *destination, Coordinate destination_coordinate, uint8_t *source, const SpriteGraphic *sprite)
-{  
-  jag_wait_blitter_ready();
-  
-  //the sprite sheet is 232x672 8bpp
-  //the destination bitmap is 320x200 8bpp
-  
-  MMIO32(A1_BASE)   = (long)destination;
-  MMIO32(A1_PIXEL)  = BLIT_XY(destination_coordinate.x, destination_coordinate.y);
-  MMIO32(A1_FPIXEL) = 0;
-  MMIO32(A1_FLAGS)  = PITCH1 | PIXEL8 | WID320 | XADDPIX | YADD0;
-  MMIO32(A1_STEP)   = BLIT_XY(320-sprite->size.x, 0);
-  MMIO32(A1_CLIP)   = BLIT_XY(320, 200);
-  
-  MMIO32(A2_BASE)   = (long)source;
-  MMIO32(A2_PIXEL)  = BLIT_XY(sprite->location.x, sprite->location.y);
-  MMIO32(A2_STEP)   = BLIT_XY(256-sprite->size.x, 0);
-  MMIO32(A2_FLAGS)  = PITCH1 | PIXEL8 | WID256 | XADDPIX | YADD0;
-  
-  MMIO32(B_COUNT)   = BLIT_XY(sprite->size.x, sprite->size.y);
-
-  //SRCEN and DSTEN must be enabled for blits below 8bpp
-  MMIO32(B_CMD)     = SRCEN | DSTEN | UPDA1 | UPDA2 | DCOMPEN | LFU_REPLACE;
-}
-
 void clear_video_buffer(uint8_t *buffer){
   BLIT_rectangle_solid(buffer, 0, 0, 320, 200, 0);
+}
+
+void draw_status_bar(uint8_t *buffer)
+{
+  BLIT_rectangle_solid(buffer, 263, 0, 56, 200, 0x4949494949494949);
+
+  BLIT_8x8_text_string(text_buffer, 280, 16, "S");
+  BLIT_8x8_text_string(text_buffer, 280, 24, "T");
+  BLIT_8x8_text_string(text_buffer, 280, 32, "A");
+  BLIT_8x8_text_string(text_buffer, 280, 40, "T");
+  BLIT_8x8_text_string(text_buffer, 280, 48, "U");
+  BLIT_8x8_text_string(text_buffer, 280, 56, "S");
 }
 
 int main() {
@@ -208,6 +107,32 @@ int main() {
 
   skunkCONSOLEWRITE("font layer initialized\n");
 
+  /* Sprite layer */
+  {
+    mobj_sprites.graphic = calloc(1,sizeof(op_bmp_object));
+    mobj_sprites.objType = BITOBJ;
+    mobj_sprites.position.x = 19;
+    mobj_sprites.position.y = 80;
+    mobj_sprites.pxWidth = 320;
+    mobj_sprites.pxHeight = 200;
+    
+    mobj_sprites.animations = NULL;
+    
+    mobj_sprites.graphic->p0.type	= mobj_sprites.objType;	       	/* BITOBJ = bitmap object */
+    mobj_sprites.graphic->p0.ypos	= mobj_sprites.position.y;      /* YPOS = Y position on screen "in half-lines" */
+    mobj_sprites.graphic->p0.height     = mobj_sprites.pxHeight;	        /* in pixels */
+    mobj_sprites.graphic->p0.link	= (uint32_t)mobj_font.graphic >> 3;	/* link to next object */
+    mobj_sprites.graphic->p0.data	= (uint32_t)sprite_buffer >> 3;	/* ptr to pixel data */
+    mobj_sprites.graphic->p1.xpos	= mobj_sprites.position.x;      /* X position on screen, -2048 to 2047 */
+    mobj_sprites.graphic->p1.depth	= O_DEPTH8 >> 12;		/* pixel depth of object */
+    mobj_sprites.graphic->p1.pitch	= 1;				/* 8 * PITCH is added to each fetch */
+    mobj_sprites.graphic->p1.dwidth     = mobj_sprites.pxWidth / 8;	/* pixel data width in 8-byte phrases */
+    mobj_sprites.graphic->p1.iwidth     = mobj_sprites.pxWidth / 8;	/* image width in 8-byte phrases, for clipping */	
+    mobj_sprites.graphic->p1.release= 0;				/* bus mastering, set to 1 when low-depth */
+    mobj_sprites.graphic->p1.trans  = 1;				/* makes color 0 transparent */
+    mobj_sprites.graphic->p1.index  = 0;
+  }
+
    /* Background */
   {
     mobj_background.graphic = calloc(1,sizeof(op_bmp_object));
@@ -220,7 +145,7 @@ int main() {
     mobj_background.graphic->p0.type	= mobj_background.objType;	/* BITOBJ = bitmap object */
     mobj_background.graphic->p0.ypos	= mobj_background.position.y;   /* YPOS = Y position on screen "in half-lines" */
     mobj_background.graphic->p0.height  = mobj_background.pxHeight;	/* in pixels */
-    mobj_background.graphic->p0.link	= (uint32_t)mobj_font.graphic >> 3;	/* link to next object */
+    mobj_background.graphic->p0.link	= (uint32_t)mobj_sprites.graphic >> 3;	/* link to next object */
     mobj_background.graphic->p0.data	= (uint32_t)front_buffer >> 3;	/* ptr to pixel data */
     
     mobj_background.graphic->p1.xpos	= mobj_background.position.x;      /* X position on screen, -2048 to 2047 */
@@ -253,6 +178,16 @@ int main() {
   Coordinate player_ship_coords = (Coordinate){ .x = 100, .y = 140 };
   int player_side_movement_frames = 0;
 
+  //GPU_do_blit_sprite(sprite_buffer, (Coordinate){ .x = 100, .y = 20 }, shipsheet, SPRITES_find("NME_GrayJet"));
+
+  for(int i=0;i<10;i++){
+    SpriteEntry *grayjet = SpriteEntry_Create((Coordinate){ .x = 24*i, .y = 20 },
+					      SPRITES_find("NME_GrayJet"),
+					      (Coordinate){ .x = 0, .y = 0 },
+					      false);
+    SpriteEntry_Insert(&SpriteDisplay_List, grayjet);
+  }
+
   skunkCONSOLEWRITE("Entering main loop.\n");
   
   while(true) {
@@ -271,6 +206,7 @@ int main() {
     jag_wait_vbl();
     
     clear_video_buffer(back_buffer);
+    clear_video_buffer(sprite_buffer);
 
     /* Buffer is now clear. */
     
@@ -279,7 +215,7 @@ int main() {
 
     if((framecounter % 60) == 0)
       {
-
+	
       }
 
     Bullets_Update(&bullets_list);
@@ -338,29 +274,13 @@ int main() {
 	  
     stick0_lastread = stick0;
 
-    {
-      Coordinate destination = { .x = 80, .y = 0 };
-      GPU_do_blit_sprite(back_buffer, destination, shipsheet, SPRITES_find("BigRedBadGuy"));
-    }
+    draw_status_bar(back_buffer);
 
-    GPU_do_blit_sprite(back_buffer, player_ship_coords, shipsheet, SPRITES_find("USPTalon"));
+    //GPU_do_blit_sprite(sprite_buffer, player_ship_coords, shipsheet, SPRITES_find("USPTalon"));
 
-    Bullets_Draw(&bullets_list);
-    
-    /*
-    if(bullets_list != NULL)
-      {
-	Bullet *bullet = bullets_list;
-	bullet->location.y += bullet->deltaPerFrame.y;
-	if(bullet->location.y > 0) {
-	  GPU_do_blit_sprite(back_buffer, bullet->location, shipsheet, SPRITES_find("PulseBullet1"));
-	}
-	else
-	  bullets_list = NULL;
-      }
-    */
+    Bullets_Draw(&bullets_list, sprite_buffer);
+    SpriteEntry_Draw(&SpriteDisplay_List, sprite_buffer);
     
     //MOBJ_Print_Position(mobj_lottoballs[0]);
   }
 }
-
