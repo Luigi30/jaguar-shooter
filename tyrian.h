@@ -13,6 +13,8 @@
 #include "gfx/palette.h"
 #include "gfx/sprite.h"
 
+#include "utils/list.h"
+
 #include "images.h"
 #include "mobj.h"
 #include "fixed.h"

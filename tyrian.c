@@ -180,14 +180,17 @@ int main() {
 
   //GPU_do_blit_sprite(sprite_buffer, (Coordinate){ .x = 100, .y = 20 }, shipsheet, SPRITES_find("NME_GrayJet"));
 
-  for(int i=0;i<10;i++){
-    SpriteEntry *grayjet = SpriteEntry_Create((Coordinate){ .x = 24*i, .y = 20 },
-					      SPRITES_find("NME_GrayJet"),
-					      (Coordinate){ .x = 0, .y = 0 },
-					      false);
-    SpriteEntry_Insert(&SpriteDisplay_List, grayjet);
-  }
+  list_Sprites = malloc(sizeof(struct List));
+  NewList(list_Sprites);
 
+  for(int i=0;i<10;i++){
+    SpriteNode *node = SpriteNode_Create((Coordinate){ .x = 24*i, .y = 20 },
+					 SPRITES_find("NME_GrayJet"),
+					 (Coordinate){ .x = 0, .y = 0 },
+					 false);
+    AddHead(list_Sprites, (struct Node *)node);
+  }
+  
   skunkCONSOLEWRITE("Entering main loop.\n");
   
   while(true) {
@@ -279,7 +282,7 @@ int main() {
     //GPU_do_blit_sprite(sprite_buffer, player_ship_coords, shipsheet, SPRITES_find("USPTalon"));
 
     Bullets_Draw(&bullets_list, sprite_buffer);
-    SpriteEntry_Draw(&SpriteDisplay_List, sprite_buffer);
+    SpriteList_Draw(list_Sprites, sprite_buffer);
     
     //MOBJ_Print_Position(mobj_lottoballs[0]);
   }

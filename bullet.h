@@ -26,4 +26,16 @@ void Bullets_Insert(Bullet **head, Bullet *new);
 void Bullets_Update(Bullet **head);
 void Bullets_Draw(Bullet **head, uint8_t *buffer);
 
+//
+typedef struct bulletnode_t {
+	struct MinNode node;
+	
+	Coordinate location;
+	SpriteGraphic image;
+	Coordinate deltaPerFrame;
+	bool isPlayer;
+} BulletNode;
+
+extern BulletNode *list_Bullets;
+
 #endif

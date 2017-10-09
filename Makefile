@@ -5,7 +5,7 @@ BINPATH = ../bin/
 OBJPATH = ../obj/
 TOOLPATH= ../tools/
 
-OBJFILES = $(OBJPATH)tyrian.o $(OBJPATH)/utils/list.o $(OBJPATH)gfx/sprite.o $(OBJPATH)fixed.o $(OBJPATH)gfx/blit.o $(OBJPATH)bullet.o $(OBJPATH)gfx/sprites.o $(OBJPATH)mobj.o $(OBJPATH)images.o $(OBJPATH)gfx/palette.o $(OBJPATH)paldata.o
+OBJFILES = $(OBJPATH)tyrian.o $(OBJPATH)utils/list.o $(OBJPATH)utils/list_functions.o $(OBJPATH)gfx/sprite.o $(OBJPATH)fixed.o $(OBJPATH)gfx/blit.o $(OBJPATH)bullet.o $(OBJPATH)gfx/sprites.o $(OBJPATH)mobj.o $(OBJPATH)images.o $(OBJPATH)gfx/palette.o $(OBJPATH)paldata.o
 IMAGES = images/atarifont.s images/atarifont8x8.s images/shipsheet.s
 
 UNAME := $(shell uname)

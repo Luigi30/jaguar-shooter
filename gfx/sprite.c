@@ -1,13 +1,12 @@
 #include "gfx/sprite.h"
 
-SpriteEntry *SpriteDisplay_List = NULL;
+struct List *list_Sprites = NULL;
 
 /* Display list functions */
-SpriteEntry *SpriteEntry_Create(Coordinate _location, SpriteGraphic *_image, Coordinate _deltaPerFrame, bool _isPlayer)
+SpriteNode *SpriteNode_Create(Coordinate _location, SpriteGraphic *_image, Coordinate _deltaPerFrame, bool _isPlayer)
 {
-  SpriteEntry *sprite_entry = calloc(1, sizeof(SpriteEntry));
+  SpriteNode *sprite_entry = calloc(1, sizeof(SpriteNode));
 
-  sprite_entry->next = NULL;
   sprite_entry->location = (Coordinate){ .x = _location.x, .y = _location.y };
   sprite_entry->image = (SpriteGraphic){ .location = _image->location, .size = _image->size };
   sprite_entry->deltaPerFrame = (Coordinate){ .x = _deltaPerFrame.x, .y = _deltaPerFrame.y };
@@ -18,25 +17,15 @@ SpriteEntry *SpriteEntry_Create(Coordinate _location, SpriteGraphic *_image, Coo
   return sprite_entry;
 }
 
-void SpriteEntry_Insert(SpriteEntry **head, SpriteEntry *new)
+void SpriteList_Draw(struct List *spriteList, uint8_t *buffer)
 {
-  new->next = *head;
-  *head = new;
-}
-
-void SpriteEntry_Draw(SpriteEntry **head, uint8_t *buffer)
-{
-  //GPU_sprite_display_list_head = *head;
-  //GPU_START(GPU_process_display_list);
-
-  SpriteEntry *current = *head;
+  SpriteNode *current = (SpriteNode *)spriteList->lh_Head;
 
   while(current != NULL) {
     GPU_do_blit_sprite(buffer, current->location, shipsheet, SPRITES_find(current->image.name));
 
-    current = current->next;
+    current = (SpriteNode *)current->node.ln_Succ;
   }
-
 }
 
 /* GPU functions */
