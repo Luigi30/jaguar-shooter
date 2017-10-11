@@ -59,15 +59,18 @@ MLH_SIZE	 equ 12
 	xdef	_AddTail
 	xdef	_RemHead
 	xdef	_RemTail
+	xdef	_Remove
 	
+	even
 _AddHead:
-	MOVE.L  (A0),D0
-	MOVE.L  A1,(A0)
-	MOVEM.L D0/A0,(A1)
+	MOVE.L  (A0),D0			;d0 = succ(a0)
+	MOVE.L  A1,(A0)			;new node = (a0)
+	MOVEM.L D0/A0,(A1)		
 	MOVE.L  D0,A0
-	MOVE.L  A1,LN_PRED(A0)
+	MOVE.L  A1,LN_PRED(A0)	;new node = predecessor of the old head
 	RTS
 	
+	even
 _AddTail:
 	ADDQ.L  #LH_TAIL,A0
 	MOVE.L  LN_PRED(A0),D0
@@ -78,6 +81,7 @@ _AddTail:
 	MOVE.L  A1,(A0)
 	RTS
 	
+	even
 _RemHead:
 	MOVE.L  (A0),A1
 	MOVE.L  (A1),D0
@@ -88,6 +92,7 @@ _RemHead:
 .done:
 	RTS
 	
+	even
 _RemTail:
 	MOVE.L  LH_TAIL+LN_PRED(A0),A1
 	MOVE.L  LN_PRED(A1),D0
@@ -97,4 +102,12 @@ _RemTail:
 	MOVE.L  A0,(A1)
 	ADDQ.L  #4,(A1)
 .done:
+	RTS
+	
+	even
+_Remove:
+	MOVE.L  (A1),A0
+	MOVE.L  LN_PRED(A1),A1
+	MOVE.L  A0,(A1)
+	MOVE.L  A1,LN_PRED(A0)
 	RTS

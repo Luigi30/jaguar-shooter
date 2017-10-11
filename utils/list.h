@@ -36,5 +36,8 @@ extern void AddTail(__reg("a0") struct List *list, __reg("a1") struct Node *node
 extern struct Node *RemHead(__reg("a0") struct List *list);
 extern struct Node *RemTail(__reg("a0") struct List *list);
 
+extern struct Node *Remove(__reg("a1") struct Node *node);
+extern struct Node *FindName(struct List *list, char *name);
+
 void NewList(struct List *lh);
 #endif

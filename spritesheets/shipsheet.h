@@ -5,6 +5,8 @@
 #include "string.h"
 #include "jaglib.h"
 
+extern const SpriteGraphic * SPRITES_LIST[];
+
 static const SpriteGraphic SPR_USPTalon = { .name = "USPTalon",
 					    .location = { .x = 48, .y = 170 },
 					    .size = { .x = 24, .y = 25 } };

@@ -13,6 +13,10 @@
 	.include "jaguar.inc"
 	.include "regmacros.inc"
 
+	.globl 	_back_buffer
+	.globl 	_SPRITES_LIST
+	.globl  _shipsheet
+
 	.macro BLIT_XY x,y
 	move	\x,TEMP2
 	move	\y,TEMP1
@@ -84,6 +88,8 @@ _gpu_sprite_test::
 	
 	movei	#0,TEMP1
 	store	TEMP1,(R_A1_FPIXEL) 	;always 0
+	movei	#B_PATD,TEMP2
+	store	TEMP1,(TEMP2)		;clear the pattern register
 
 	movei	#$00C80140,TEMP1
 	store	TEMP1,(R_A1_CLIP)
@@ -149,6 +155,88 @@ _GPU_blit_sprite::			dc.l	0 ; pointer to SpriteGraphic
 	OFFSET_SpriteGraphic_Location	.equ	16
 	OFFSET_SpriteGraphic_Size	.equ	20
 	OFFSET_SpriteGraphic_END	.equ	24
+;;; 
+_gpu_process_sprite_list::
+	STACK_PTR	.equr	r31
+	
+	CURRENT_NODE	.equr	r10
+	SUCCESSOR	.equr	r11
+	PREDECESSOR	.equr	r12
+	SPRITE_COUNT	.equr	r13
+
+	NODE_OFFSET	.equr	r14
+
+	movei	#_gpu_stack_end,STACK_PTR
+	
+	movei	#_gpu_sprite_display_list,TEMP1
+	load	(TEMP1),CURRENT_NODE	; list is now in r10
+
+	movei	#0,SPRITE_COUNT
+
+.node_loop:
+	movei	#.done,JUMPADDR
+	load	(CURRENT_NODE),CURRENT_NODE 	; advance to the next node
+	load	(CURRENT_NODE),SUCCESSOR	; get the successor node if one exists
+	cmpq	#0,SUCCESSOR			; is the successor NULL?
+	jump	eq,(JUMPADDR)			; if so, we're done
+	nop
+
+;;; we have a node! load the rest of it and process it.
+	movei	#OFFSET_SPRNODE_ln_Pred,NODE_OFFSET
+	load	(r14+CURRENT_NODE),PREDECESSOR  ; get predecessor
+
+;;; populate the blit values
+	movei	#_back_buffer,TEMP1
+	load	(TEMP1),TEMP1	; dereference
+	movei	#_GPU_blit_destination,TEMP2
+	store	TEMP1,(TEMP2)	; store the buffer address
+
+	movei	#OFFSET_SPRNODE_location,NODE_OFFSET
+	load	(NODE_OFFSET+CURRENT_NODE),TEMP1 ; this is a value, not a pointer.
+	movei	#_GPU_blit_destination_coordinate,TEMP2
+	store	TEMP1,(TEMP2)			 ; store the location value
+
+	movei	#_shipsheet,TEMP1 ; shipsheet is always our source
+	movei	#_GPU_blit_source,TEMP2
+	store	TEMP1,(TEMP2)	  ; store a ptr to it
+	
+	move	CURRENT_NODE,TEMP1
+	addq	#16,TEMP1
+	movei	#_GPU_blit_sprite,TEMP2
+	addq	#2,TEMP1	; interleave
+	store	TEMP1,(TEMP2)   ; and this is our sprite value
+	
+	addq	#1,SPRITE_COUNT	; debugging: index
+
+	;; TODO: JSR gpu_sprite_test
+
+	movei	#.node_loop,JUMPADDR
+	jump	t,(JUMPADDR)	; and loop again
+	nop
+.done:	
+	StopGPU
+
+	.long
+_gpu_sprite_display_list::	dc.l	0 ; struct List *
+
+;;; SpriteNode offset table
+	OFFSET_SPRNODE_ln_Succ	.equ	0  ; struct Node *
+	OFFSET_SPRNODE_ln_Pred	.equ	4  ; struct Node *
+	OFFSET_SPRNODE_ln_Type	.equ	8  ; uint8
+	OFFSET_SPRNODE_ln_Pri	.equ	9  ; int8
+	OFFSET_SPRNODE_ln_Name	.equ	10 ; char *
+	OFFSET_SPRNODE_NODESIZE	.equ	14
+
+	OFFSET_SPRNODE_location	.equ	14 ; struct Coordinate
+	OFFSET_SPRNODE_image    .equ    18 ; struct SpriteGraphic
+	OFFSET_SPRNODE_delta	.equ    42 ; struct Coordinate
+	OFFSET_SPRNODE_isPlayer .equ	46 ; uint8
+	OFFSET_SPRNODE_padding	.equ	47 ; uint8
+	OFFSET_SPRNODE_SIZE	.equ    48
+
+;;;
+_gpu_stack::			dcb.l	32,0	;32-position stack
+_gpu_stack_end:	
 	
 	.68000 			;End section
 _gpu_sprite_program_end::

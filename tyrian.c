@@ -145,7 +145,7 @@ int main() {
     mobj_background.graphic->p0.type	= mobj_background.objType;	/* BITOBJ = bitmap object */
     mobj_background.graphic->p0.ypos	= mobj_background.position.y;   /* YPOS = Y position on screen "in half-lines" */
     mobj_background.graphic->p0.height  = mobj_background.pxHeight;	/* in pixels */
-    mobj_background.graphic->p0.link	= (uint32_t)mobj_sprites.graphic >> 3;	/* link to next object */
+    mobj_background.graphic->p0.link	= (uint32_t)mobj_font.graphic >> 3;	/* link to next object */
     mobj_background.graphic->p0.data	= (uint32_t)front_buffer >> 3;	/* ptr to pixel data */
     
     mobj_background.graphic->p1.xpos	= mobj_background.position.x;      /* X position on screen, -2048 to 2047 */
@@ -178,10 +178,11 @@ int main() {
   Coordinate player_ship_coords = (Coordinate){ .x = 100, .y = 140 };
   int player_side_movement_frames = 0;
 
-  //GPU_do_blit_sprite(sprite_buffer, (Coordinate){ .x = 100, .y = 20 }, shipsheet, SPRITES_find("NME_GrayJet"));
-
   list_Sprites = malloc(sizeof(struct List));
   NewList(list_Sprites);
+
+  list_Bullets = malloc(sizeof(struct List));
+  NewList(list_Bullets);
 
   for(int i=0;i<10;i++){
     SpriteNode *node = SpriteNode_Create((Coordinate){ .x = 24*i, .y = 20 },
@@ -190,6 +191,13 @@ int main() {
 					 false);
     AddHead(list_Sprites, (struct Node *)node);
   }
+
+  SpriteNode *player = SpriteNode_Create(player_ship_coords,
+					 SPRITES_find("USPTalon"),
+					 (Coordinate){ .x = 0, .y = 0 },
+					 true);
+  player->node.ln_Name = "PLAYER_SHIP";
+  AddHead(list_Sprites, player);
   
   skunkCONSOLEWRITE("Entering main loop.\n");
   
@@ -207,9 +215,10 @@ int main() {
       }
     
     jag_wait_vbl();
+
+    BLIT_8x8_text_string(text_buffer, 32, 16, "NEW FRAME");
     
     clear_video_buffer(back_buffer);
-    clear_video_buffer(sprite_buffer);
 
     /* Buffer is now clear. */
     
@@ -221,7 +230,8 @@ int main() {
 	
       }
 
-    Bullets_Update(&bullets_list);
+    BulletsList_Update(list_Bullets);
+    BLIT_8x8_text_string(text_buffer, 32, 24, "BULLETS UPDATED");
     
     /* Triggers once per frame while these are pressed */
     if(stick0_lastread & STICK_UP) {
@@ -262,9 +272,11 @@ int main() {
 	if(~stick0_lastread & STICK_A)
 	  {
 	    Coordinate bullet_coords = { .x = player_ship_coords.x + 6, .y = player_ship_coords.y };
-	    Bullets_Insert(&bullets_list,
-			  Bullet_Create(bullet_coords, SPR_PulseBullet_1, (Coordinate){ .x = 0, .y = -4 }, true)
-			  );
+	    AddHead(list_Bullets, BulletNode_Create(bullet_coords,
+						    SPRITES_find("PulseBullet1"),
+						    (Coordinate){ .x = 0, .y = -4 },
+						    true)
+		    );
 	  }
 	break;
       case STICK_B:
@@ -277,12 +289,17 @@ int main() {
 	  
     stick0_lastread = stick0;
 
+    BLIT_8x8_text_string(text_buffer, 32, 40, "CONTROLS READ");
+    
+    SpriteNode *player_ship = (SpriteNode *)FindName(list_Sprites, "PLAYER_SHIP");
+    player_ship->location = (Coordinate){ .x = player_ship_coords.x, .y = player_ship_coords.y };
+
     draw_status_bar(back_buffer);
 
-    //GPU_do_blit_sprite(sprite_buffer, player_ship_coords, shipsheet, SPRITES_find("USPTalon"));
+    BulletsList_Draw(list_Bullets, back_buffer);
+    SpriteList_Draw(list_Sprites, back_buffer);
 
-    Bullets_Draw(&bullets_list, sprite_buffer);
-    SpriteList_Draw(list_Sprites, sprite_buffer);
+    BLIT_8x8_text_string(text_buffer, 32, 48, "SPRITES DRAWN");
     
     //MOBJ_Print_Position(mobj_lottoballs[0]);
   }

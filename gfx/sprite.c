@@ -19,13 +19,27 @@ SpriteNode *SpriteNode_Create(Coordinate _location, SpriteGraphic *_image, Coord
 
 void SpriteList_Draw(struct List *spriteList, uint8_t *buffer)
 {
-  SpriteNode *current = (SpriteNode *)spriteList->lh_Head;
+  /*
+  struct Node *current;
 
-  while(current != NULL) {
-    GPU_do_blit_sprite(buffer, current->location, shipsheet, SPRITES_find(current->image.name));
+  for (current = spriteList->lh_Head; current->ln_Succ != NULL; current = current->ln_Succ)
+    {      
+      GPU_do_blit_sprite(buffer, ((SpriteNode *)current)->location, shipsheet, SPRITES_find(((SpriteNode *)current)->image.name));
+    }
+  */
 
-    current = (SpriteNode *)current->node.ln_Succ;
-  }
+  skunkCONSOLEWRITE("BEGIN LIST\n");
+  
+  for (struct Node *current = spriteList->lh_Head; current->ln_Succ != NULL; current = current->ln_Succ)
+    {      
+      sprintf(skunkoutput, "node: %p | prev %p | next %p\n", current, current->ln_Pred, current->ln_Succ);
+      skunkCONSOLEWRITE(skunkoutput);
+    }
+
+  skunkCONSOLEWRITE("END LIST\n");
+
+  gpu_sprite_display_list = spriteList;
+  GPU_START(gpu_process_sprite_list);
 }
 
 /* GPU functions */
@@ -37,7 +51,7 @@ void GPU_LOAD_SPRITE_PROGRAM() {
 
 void GPU_START(uint8_t *function) {
   MMIO32(G_PC) = (uint32_t)(0xF03000 + function - gpu_sprite_program_start);
-  
+
   /*
   char gpustr[256];
   sprintf(gpustr, "GPU_START(): function is at $%08X. gpu_sprite_program_start is at $%08X\n", (long)function, (long)gpu_sprite_program_start);
@@ -85,7 +99,7 @@ const SpriteGraphic * SPRITES_find(char *name)
 void GPU_do_blit_sprite(uint8_t *destination, Coordinate destination_coordinate, uint8_t *source, const SpriteGraphic *sprite)
 {
   jag_gpu_wait();
-  
+
   GPU_blit_destination = destination;
   GPU_blit_destination_coordinate = (Coordinate){ .x = destination_coordinate.x, .y = destination_coordinate.y };
   GPU_blit_source = source;

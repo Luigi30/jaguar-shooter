@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#include "utils/list.h"
 #include "shared.h"
 #include "jaglib.h"
 #include "gfx/sprite.h"
@@ -37,5 +38,9 @@ typedef struct bulletnode_t {
 } BulletNode;
 
 extern BulletNode *list_Bullets;
+
+BulletNode *BulletNode_Create(Coordinate _location, SpriteGraphic *_image, Coordinate _deltaPerFrame, bool _isPlayer);
+void BulletsList_Update(struct List *bullets);
+void BulletsList_Draw(struct List *bullets, uint8_t *buffer);
 
 #endif

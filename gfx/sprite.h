@@ -22,6 +22,7 @@ typedef struct sprite_node_t {
   SpriteGraphic image;
   Coordinate deltaPerFrame;
   bool isPlayer;
+  uint8_t padding;
 } SpriteNode;
 
 extern struct List *list_Sprites;
@@ -45,11 +46,13 @@ extern uint8_t gpu_sprite_program_start[];
 extern uint8_t gpu_sprite_program_end[];
 
 extern uint8_t gpu_sprite_test[];
-extern uint8_t GPU_process_display_list[];
+extern uint8_t gpu_process_sprite_list[];
 
 extern uint8_t 		*GPU_blit_destination;
 extern Coordinate 	GPU_blit_destination_coordinate;
 extern uint8_t 		*GPU_blit_source;
 extern const SpriteGraphic *GPU_blit_sprite;
+
+extern struct List *gpu_sprite_display_list;
 
 #endif

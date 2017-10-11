@@ -55,7 +55,7 @@ $(OBJPATH)%.o: %.asm
 	$(DOCKER) $(CC) +jaguar.cfg -c -c99 -o $@ $?
 
 $(OBJPATH)%.o: %.tom.s
-	$(AS) $? -I$(JAGINCLUDE) -I$(SRCPATH) -Fvobj -mgpu -o $@
+	$(AS) -L $@.lst $? -I$(JAGINCLUDE) -I$(SRCPATH) -Fvobj -mgpu -o $@
 
 $(OBJPATH)%.o: %.jerry.s
 	$(AS) -L $@.lst $? -I$(JAGINCLUDE) -I$(SRCPATH) -Fvobj -mdsp -o $@
