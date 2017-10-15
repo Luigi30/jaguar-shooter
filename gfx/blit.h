@@ -17,6 +17,10 @@
 
 #define SWAP(T, a, b) do { T tmp = a; a = b; b = tmp; } while (0)
 
+extern uint8_t BLITTER_LOCK_CPU;
+extern uint8_t BLITTER_LOCK_GPU;
+extern uint8_t BLITTER_LOCK_ALLOW;
+
 void BLIT_init_blitter();
 
 void BLIT_16x16_text_string(uint8_t *destination, uint16_t x, uint16_t y, char *str);

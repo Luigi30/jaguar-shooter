@@ -2,6 +2,11 @@
 
 #include "images.h"
 
+enum BLITTER_LOCK_TURN { BLITTER_ALLOW_CPU, BLITTER_ALLOW_GPU };
+
+uint8_t BLITTER_LOCK_CPU = false; //is the blitter locked by the CPU?
+uint8_t BLITTER_LOCK_GPU = false; //is the blitter locked by the GPU?
+uint8_t BLITTER_LOCK_ALLOW = BLITTER_ALLOW_CPU;
 
 void BLIT_16x16_text_string(uint8_t *destination, uint16_t x, uint16_t y, char *str)
 {
@@ -27,6 +32,16 @@ void BLIT_16x16_font_glyph(uint8_t *destination, uint16_t x, uint16_t y, uint8_t
   //Blit a glyph from an 16x16 font sheet.
   //A sheet is 256x256px = 16x16 glyphs.
 
+  BLITTER_LOCK_CPU = true;
+  BLITTER_LOCK_ALLOW = BLITTER_ALLOW_CPU;
+  while(BLITTER_LOCK_GPU && BLITTER_LOCK_ALLOW == BLITTER_ALLOW_CPU)
+    {
+      skunkCONSOLEWRITE("BLIT_16x16_font_glyph: Blitter is locked by GPU\n");
+    }
+  
+  jag_gpu_wait();
+  jag_wait_blitter_ready();
+
   uint16_t source_x = (c * 16) % 256;
   uint16_t source_y = (c & 0xF0) + 128;
   
@@ -45,12 +60,24 @@ void BLIT_16x16_font_glyph(uint8_t *destination, uint16_t x, uint16_t y, uint8_t
 
   //SRCEN and DSTEN must be enabled for blits below 8bpp
   MMIO32(B_CMD)     = SRCEN | DSTEN | UPDA1 | UPDA2 | LFU_REPLACE;
+
+  BLITTER_LOCK_CPU = false;
 }
 
 void BLIT_8x8_font_glyph(uint8_t *destination, uint16_t x, uint16_t y, uint8_t *source, uint8_t c)
 {
   //Blit a glyph from an 8x8 font sheet.
   //A sheet is 128x128px = 16x16 glyphs.
+
+  BLITTER_LOCK_CPU = true;
+  BLITTER_LOCK_ALLOW = BLITTER_ALLOW_CPU;
+  while(BLITTER_LOCK_GPU && BLITTER_LOCK_ALLOW == BLITTER_ALLOW_CPU)
+    {
+      skunkCONSOLEWRITE("BLIT_8x8_font_glyph: Blitter is locked by GPU\n");
+    }
+  
+  jag_gpu_wait();
+  jag_wait_blitter_ready();
 
   uint16_t source_x = (c * 8) % 128;
   uint16_t source_y = (8 * ((c & 0xF0) >> 4));
@@ -70,10 +97,19 @@ void BLIT_8x8_font_glyph(uint8_t *destination, uint16_t x, uint16_t y, uint8_t *
 
   //SRCEN and DSTEN must be enabled for blits below 8bpp
   MMIO32(B_CMD)     = SRCEN | DSTEN | UPDA1 | UPDA2 | LFU_REPLACE;
+
+  BLITTER_LOCK_CPU = false;
 }
 
 void BLIT_rectangle_solid(uint8_t *buffer, uint16_t topleft_x, uint16_t topleft_y, uint16_t width, uint16_t height, uint64_t pattern)
 {
+  BLITTER_LOCK_CPU = true;
+  BLITTER_LOCK_ALLOW = BLITTER_ALLOW_CPU;
+  while(BLITTER_LOCK_GPU && BLITTER_LOCK_ALLOW == BLITTER_ALLOW_CPU)
+    {
+      skunkCONSOLEWRITE("BLIT_rectangle_solid: Blitter is locked by GPU\n");
+    }
+  
   jag_wait_blitter_ready(); //don't do this until the blitter is available
   
   MMIO32(A1_BASE)	= (long)buffer;
@@ -86,6 +122,8 @@ void BLIT_rectangle_solid(uint8_t *buffer, uint16_t topleft_x, uint16_t topleft_
   MMIO64(B_PATD)	= pattern;
   MMIO32(B_COUNT)	= BLIT_XY(width, height);
   MMIO32(B_CMD)		= PATDSEL | UPDA1 | LFU_S;
+
+  BLITTER_LOCK_CPU = false;
 }
 
 void BLIT_line(uint8_t *buffer, uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint16_t color_index)

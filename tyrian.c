@@ -4,6 +4,8 @@
 #include "tyrian.h"
 #include <stdbool.h>
 
+extern uint32_t gpu_register_dump[32];
+
 char skunkoutput[256];
 
 op_stop_object *make_stopobj() {	
@@ -26,7 +28,6 @@ uint16_t jag_custom_interrupt_handler()
 
       mobj_background.graphic->p0.data = (uint32_t)front_buffer >> 3;
       mobj_font.graphic->p0.data = (uint32_t)text_buffer >> 3;
-      mobj_sprites.graphic->p0.data = (uint32_t)sprite_buffer >> 3;
 
       MMIO16(INT2) = 0;
       return C_VIDCLR;
@@ -57,7 +58,9 @@ int main() {
   srand(8675309);
   jag_console_hide();
   
-  BLIT_init_blitter();
+  //BLIT_init_blitter();
+  BLITTER_LOCK_CPU = false;
+  BLITTER_LOCK_GPU = false;
   
   skunkCONSOLEWRITE("Connected to PC.\n");
 
@@ -169,9 +172,6 @@ int main() {
   uint16_t framecounter = 0;
   uint32_t framenumber = 0;
 
-  BLIT_8x8_text_string(text_buffer, 32, 180, "SPR_BigRedBadGuy");
-  BLIT_8x8_text_string(text_buffer, 32, 188, "SPR_USPTalon");
-
   int current_palette = 0;
   char palette_string[32];
 
@@ -184,12 +184,14 @@ int main() {
   list_Bullets = malloc(sizeof(struct List));
   NewList(list_Bullets);
 
-  for(int i=0;i<10;i++){
-    SpriteNode *node = SpriteNode_Create((Coordinate){ .x = 24*i, .y = 20 },
-					 SPRITES_find("NME_GrayJet"),
-					 (Coordinate){ .x = 0, .y = 0 },
-					 false);
-    AddHead(list_Sprites, (struct Node *)node);
+  for(int j=0;j<5;j++){
+    for(int i=0;i<10;i++){
+      SpriteNode *node = SpriteNode_Create((Coordinate){ .x = 24*i, .y = 25*j },
+					   SPRITES_find("NME_GrayJet"),
+					   (Coordinate){ .x = 0, .y = 0 },
+					   false);
+      AddHead(list_Sprites, (struct Node *)node);
+    }
   }
 
   SpriteNode *player = SpriteNode_Create(player_ship_coords,
@@ -198,11 +200,16 @@ int main() {
 					 true);
   player->node.ln_Name = "PLAYER_SHIP";
   AddHead(list_Sprites, player);
+
+  sprintf(skunkoutput, "head: %p | pred %p | succ %p\n", list_Sprites->lh_Head, list_Sprites->lh_Head->ln_Pred, list_Sprites->lh_Head->ln_Succ);
+  skunkCONSOLEWRITE(skunkoutput);
+
+  //SpriteList_Draw(list_Sprites, back_buffer);
   
   skunkCONSOLEWRITE("Entering main loop.\n");
   
   while(true) {
-
+    
     if(front_buffer == background_frame_0)
       {
 	front_buffer = background_frame_1;
@@ -213,10 +220,8 @@ int main() {
 	front_buffer = background_frame_0;
 	back_buffer  = background_frame_1;
       }
-    
-    jag_wait_vbl();
 
-    BLIT_8x8_text_string(text_buffer, 32, 16, "NEW FRAME");
+    jag_wait_vbl();
     
     clear_video_buffer(back_buffer);
 
@@ -231,7 +236,6 @@ int main() {
       }
 
     BulletsList_Update(list_Bullets);
-    BLIT_8x8_text_string(text_buffer, 32, 24, "BULLETS UPDATED");
     
     /* Triggers once per frame while these are pressed */
     if(stick0_lastread & STICK_UP) {
@@ -288,19 +292,38 @@ int main() {
       }
 	  
     stick0_lastread = stick0;
-
-    BLIT_8x8_text_string(text_buffer, 32, 40, "CONTROLS READ");
     
     SpriteNode *player_ship = (SpriteNode *)FindName(list_Sprites, "PLAYER_SHIP");
     player_ship->location = (Coordinate){ .x = player_ship_coords.x, .y = player_ship_coords.y };
 
     draw_status_bar(back_buffer);
 
-    BulletsList_Draw(list_Bullets, back_buffer);
+    //BLIT_8x8_text_string(text_buffer, 32, 16, "BLITTING");
+
+    //BulletsList_Draw(list_Bullets, back_buffer);
     SpriteList_Draw(list_Sprites, back_buffer);
 
-    BLIT_8x8_text_string(text_buffer, 32, 48, "SPRITES DRAWN");
-    
-    //MOBJ_Print_Position(mobj_lottoballs[0]);
+    jag_gpu_wait();
+
+    jag_wait_blitter_ready();
+
+    /*
+    sprintf(skunkoutput, "R00 %08X R01 %08X R02 %08X R03 %08X\n", gpu_register_dump[0], gpu_register_dump[1], gpu_register_dump[2], gpu_register_dump[3]);
+    skunkCONSOLEWRITE(skunkoutput);
+    sprintf(skunkoutput, "R04 %08X R05 %08X R06 %08X R07 %08X\n", gpu_register_dump[4], gpu_register_dump[5], gpu_register_dump[6], gpu_register_dump[7]);
+    skunkCONSOLEWRITE(skunkoutput);
+    sprintf(skunkoutput, "R08 %08X R09 %08X R10 %08X R11 %08X\n", gpu_register_dump[8], gpu_register_dump[9], gpu_register_dump[10], gpu_register_dump[11]);
+    skunkCONSOLEWRITE(skunkoutput);
+    sprintf(skunkoutput, "R12 %08X R13 %08X R14 %08X R15 %08X\n", gpu_register_dump[12], gpu_register_dump[13], gpu_register_dump[14], gpu_register_dump[15]);
+    skunkCONSOLEWRITE(skunkoutput);
+    sprintf(skunkoutput, "R16 %08X R17 %08X R18 %08X R19 %08X\n", gpu_register_dump[16], gpu_register_dump[17], gpu_register_dump[18], gpu_register_dump[19]);
+    skunkCONSOLEWRITE(skunkoutput);
+    sprintf(skunkoutput, "R20 %08X R21 %08X R22 %08X R23 %08X\n", gpu_register_dump[20], gpu_register_dump[21], gpu_register_dump[22], gpu_register_dump[23]);
+    skunkCONSOLEWRITE(skunkoutput);
+    sprintf(skunkoutput, "R24 %08X R25 %08X R26 %08X R28 %08X\n", gpu_register_dump[24], gpu_register_dump[25], gpu_register_dump[26], gpu_register_dump[27]);
+    skunkCONSOLEWRITE(skunkoutput);
+    sprintf(skunkoutput, "R28 %08X R29 %08X R30 %08X R31 %08X\n", gpu_register_dump[28], gpu_register_dump[29], gpu_register_dump[30], gpu_register_dump[31]);
+    skunkCONSOLEWRITE(skunkoutput);
+    */
   }
 }

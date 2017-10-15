@@ -7,8 +7,9 @@ SpriteNode *SpriteNode_Create(Coordinate _location, SpriteGraphic *_image, Coord
 {
   SpriteNode *sprite_entry = calloc(1, sizeof(SpriteNode));
 
+  sprite_entry->padding = 0xAA55;
   sprite_entry->location = (Coordinate){ .x = _location.x, .y = _location.y };
-  sprite_entry->image = (SpriteGraphic){ .location = _image->location, .size = _image->size };
+  sprite_entry->image = (SpriteGraphic){ .location = _image->location, .size = _image->size }; //TODO: make this into a ptr
   sprite_entry->deltaPerFrame = (Coordinate){ .x = _deltaPerFrame.x, .y = _deltaPerFrame.y };
   sprite_entry->isPlayer = _isPlayer;
 
@@ -20,14 +21,6 @@ SpriteNode *SpriteNode_Create(Coordinate _location, SpriteGraphic *_image, Coord
 void SpriteList_Draw(struct List *spriteList, uint8_t *buffer)
 {
   /*
-  struct Node *current;
-
-  for (current = spriteList->lh_Head; current->ln_Succ != NULL; current = current->ln_Succ)
-    {      
-      GPU_do_blit_sprite(buffer, ((SpriteNode *)current)->location, shipsheet, SPRITES_find(((SpriteNode *)current)->image.name));
-    }
-  */
-
   skunkCONSOLEWRITE("BEGIN LIST\n");
   
   for (struct Node *current = spriteList->lh_Head; current->ln_Succ != NULL; current = current->ln_Succ)
@@ -37,7 +30,9 @@ void SpriteList_Draw(struct List *spriteList, uint8_t *buffer)
     }
 
   skunkCONSOLEWRITE("END LIST\n");
+  */
 
+  jag_gpu_wait();
   gpu_sprite_display_list = spriteList;
   GPU_START(gpu_process_sprite_list);
 }
@@ -60,7 +55,7 @@ void GPU_START(uint8_t *function) {
   sprintf(gpustr, "GPU_START(): GPU running from $%08X\n", (uint32_t)(0xF03000 + function - gpu_sprite_program_start));
   skunkCONSOLEWRITE(gpustr);
   */
-  
+
   MMIO32(G_CTRL) = MMIO32(G_CTRL) | 0x01;
 }
 
@@ -98,6 +93,7 @@ const SpriteGraphic * SPRITES_find(char *name)
 
 void GPU_do_blit_sprite(uint8_t *destination, Coordinate destination_coordinate, uint8_t *source, const SpriteGraphic *sprite)
 {
+  /*
   jag_gpu_wait();
 
   GPU_blit_destination = destination;
@@ -106,4 +102,5 @@ void GPU_do_blit_sprite(uint8_t *destination, Coordinate destination_coordinate,
   GPU_blit_sprite = sprite;
 
   GPU_START(gpu_sprite_test);
+  */
 }

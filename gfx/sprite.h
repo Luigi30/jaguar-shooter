@@ -18,11 +18,12 @@ extern char skunkoutput[256];
 typedef struct sprite_node_t {
   struct Node node;
 	
+  uint16_t padding; //make the rest of the node long-aligned.
   Coordinate location;
   SpriteGraphic image;
   Coordinate deltaPerFrame;
   bool isPlayer;
-  uint8_t padding;
+  uint8_t end_padding;
 } SpriteNode;
 
 extern struct List *list_Sprites;

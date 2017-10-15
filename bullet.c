@@ -58,7 +58,7 @@ void BulletsList_Update(struct List *bullets)
 }
 
 void BulletsList_Draw(struct List *bullets, uint8_t *buffer)
-{  
+{
   for (BulletNode *current = (SpriteNode *)bullets->lh_Head; current->node.mln_Succ; current = current->node.mln_Succ)
     {    
       GPU_do_blit_sprite(buffer, current->location, shipsheet, SPRITES_find(current->image.name));

@@ -7,7 +7,7 @@ void PALETTES_initialize()
 {
 	uint32_t color_count = (long)(vga_palettes_end - vga_palettes) / 3;
 	
-	sprintf(skunkout, "%d colors in palette data corresponding to %d palettes\n", color_count, color_count/256);
+	sprintf(skunkout, "%d colors in palette data corresponding to %d palettes.\n", color_count, color_count/256);
 	skunkCONSOLEWRITE(skunkout);
 	
 	jaguar_palettes = malloc(32768);

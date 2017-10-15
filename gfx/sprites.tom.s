@@ -13,10 +13,15 @@
 	.include "jaguar.inc"
 	.include "regmacros.inc"
 
+	;; all uint8_t
+	.globl  _BLITTER_LOCK_CPU ; CPU has locked the blitter
+	.globl  _BLITTER_LOCK_GPU ; GPU has locked the blitter
+	.globl  _BLITTER_LOCK_ALLOW ; 0 = CPU has priority, 1 = GPU has priority
+	
 	.globl 	_back_buffer
 	.globl 	_SPRITES_LIST
 	.globl  _shipsheet
-
+	
 	.macro BLIT_XY x,y
 	move	\x,TEMP2
 	move	\y,TEMP1
@@ -31,10 +36,10 @@
 	or	TEMP1,TEMP2
 	.endm
 
-	.gpu
+	.gpu	
 _gpu_sprite_program::
 	.org	$F03000
-	
+
 	R_A1_BASE	.equr	r19
 	R_A1_PIXEL 	.equr	r20
 	R_A1_FPIXEL 	.equr	r21
@@ -49,13 +54,84 @@ _gpu_sprite_program::
 	R_B_CMD   	.equr	r30
 
 _gpu_sprite_program_start::
-	
+
 	.phrase
-_gpu_sprite_test::
-	movei   #G_FLAGS,r1       ; Status flags
-	load    (r1),r0
-	bset    #14,r0
-	store   r0,(r1)           ; Switch the GPU/DSP to bank 1
+_gpu_process_sprite_list::	
+	CURRENT_NODE	.equr	r3
+	SUCCESSOR	.equr	r4
+	PREDECESSOR	.equr	r5
+	SPRITE_COUNT	.equr	r6
+
+	NODE_OFFSET	.equr	r15
+
+	GPU_REG_BANK_1
+	movei	#0,r8
+	movei	#0,r9
+	movei	#0,r16
+	movei	#0,r17
+
+	movei	#_gpu_stack_end,SP
+	
+	movei	#_gpu_sprite_display_list,TEMP1
+	load	(TEMP1),CURRENT_NODE	; list is now in r2
+
+	movei	#0,SPRITE_COUNT
+
+.node_loop:
+	movei	#.done,JUMPADDR
+	load	(CURRENT_NODE),CURRENT_NODE     ; advance to the next node
+	load	(CURRENT_NODE),SUCCESSOR	; get the successor if one exists
+
+	cmpq	#0,SUCCESSOR			; is the successor NULL?
+	jump	eq,(JUMPADDR)			; if so, we're done
+	nop
+
+;;; we have a node! load the rest of it and process it.
+	movei	#OFFSET_SPRNODE_ln_Pred,NODE_OFFSET
+	load	(NODE_OFFSET+CURRENT_NODE),PREDECESSOR  ; get predecessor
+
+;;; populate the blit values once the blitter is available
+	LOCK_BLITTER
+	TAKE_BLIT_PRIORITY
+
+	WAIT_FOR_BLITTER_LOCK
+	WAIT_FOR_BLITTER_IDLE
+	
+	movei	#_back_buffer,TEMP1
+	load	(TEMP1),TEMP1	; dereference
+	movei	#_GPU_blit_destination,TEMP2
+	store	TEMP1,(TEMP2)	; store the buffer address
+
+	movei	#OFFSET_SPRNODE_location,NODE_OFFSET
+	load	(NODE_OFFSET+CURRENT_NODE),TEMP1 ; this is a value, not a pointer.
+	movei	#_GPU_blit_destination_coordinate,TEMP2
+	store	TEMP1,(TEMP2)			 ; store the location value
+
+	movei	#_shipsheet,TEMP1 ; shipsheet is always our source
+	movei	#_GPU_blit_source,TEMP2
+	store	TEMP1,(TEMP2)	  ; store a ptr to it
+	
+	move	CURRENT_NODE,TEMP1
+	addq	#18a,TEMP1
+	movei	#_GPU_blit_sprite,TEMP2
+	addq	#2,TEMP1	; interleave
+	store	TEMP1,(TEMP2)   ; and this is our sprite value
+
+	GPU_JSR	#_gpu_sprite_blit
+	
+	movei	#.node_loop,JUMPADDR
+	jump	t,(JUMPADDR)	; and loop again
+	nop
+.done:	
+	UNLOCK_BLITTER		; allow blitter usage again
+
+	DUMP_GPU_REGISTERS
+	
+	StopGPU
+
+	.phrase
+_gpu_sprite_blit:
+	GPU_REG_BANK_1
 	
 .load_blitter_registers:
 	movei	#B_CMD,r30
@@ -91,7 +167,7 @@ _gpu_sprite_test::
 	movei	#B_PATD,TEMP2
 	store	TEMP1,(TEMP2)		;clear the pattern register
 
-	movei	#$00C80140,TEMP1
+	movei	#0,TEMP1
 	store	TEMP1,(R_A1_CLIP)
 	
 	movei	#PITCH1|PIXEL8|WID320|XADDPIX|YADD0,TEMP1
@@ -100,6 +176,10 @@ _gpu_sprite_test::
 	movei	#OFFSET_SpriteGraphic_Size,r14
 	load	(r13),r10		;fetch the pointer
 	load	(r14+r10),TEMP1		;load the Size field
+*	movei	#$00180019,TEMP1	;!!! BUG! SpriteGraphic objects aren't long-aligned and need to be. !!!
+	move	TEMP1,r17
+	move	r14,r6
+	move	r10,r16
 	TEMP1_SWAP_WORDS		;swap hi and lo, result in TEMP2
 	movei	#$0000FFFF,TEMP1
 	and	TEMP1,TEMP2
@@ -120,6 +200,8 @@ _gpu_sprite_test::
 
 	movei	#OFFSET_SpriteGraphic_Size,r14
 *	r10 still contains the correct pointer (r13)
+
+*	movei	#$00180019,TEMP1	
 	load	(r14+r10),TEMP1		;load the Size field
 	TEMP1_SWAP_WORDS		;swap hi and lo, result in TEMP2
 	movei	#$0000FFFF,TEMP1
@@ -140,8 +222,8 @@ _gpu_sprite_test::
 .do_blit:
 	movei	#SRCEN|DSTEN|UPDA1|UPDA2|DCOMPEN|LFU_REPLACE,TEMP1
 	store	TEMP1,(R_B_CMD)
-	
-	StopGPU
+
+	GPU_RTS
 
 	.long
 _GPU_blit_destination::			dc.l	0 ; pointer
@@ -155,66 +237,7 @@ _GPU_blit_sprite::			dc.l	0 ; pointer to SpriteGraphic
 	OFFSET_SpriteGraphic_Location	.equ	16
 	OFFSET_SpriteGraphic_Size	.equ	20
 	OFFSET_SpriteGraphic_END	.equ	24
-;;; 
-_gpu_process_sprite_list::
-	STACK_PTR	.equr	r31
-	
-	CURRENT_NODE	.equr	r10
-	SUCCESSOR	.equr	r11
-	PREDECESSOR	.equr	r12
-	SPRITE_COUNT	.equr	r13
-
-	NODE_OFFSET	.equr	r14
-
-	movei	#_gpu_stack_end,STACK_PTR
-	
-	movei	#_gpu_sprite_display_list,TEMP1
-	load	(TEMP1),CURRENT_NODE	; list is now in r10
-
-	movei	#0,SPRITE_COUNT
-
-.node_loop:
-	movei	#.done,JUMPADDR
-	load	(CURRENT_NODE),CURRENT_NODE 	; advance to the next node
-	load	(CURRENT_NODE),SUCCESSOR	; get the successor node if one exists
-	cmpq	#0,SUCCESSOR			; is the successor NULL?
-	jump	eq,(JUMPADDR)			; if so, we're done
-	nop
-
-;;; we have a node! load the rest of it and process it.
-	movei	#OFFSET_SPRNODE_ln_Pred,NODE_OFFSET
-	load	(r14+CURRENT_NODE),PREDECESSOR  ; get predecessor
-
-;;; populate the blit values
-	movei	#_back_buffer,TEMP1
-	load	(TEMP1),TEMP1	; dereference
-	movei	#_GPU_blit_destination,TEMP2
-	store	TEMP1,(TEMP2)	; store the buffer address
-
-	movei	#OFFSET_SPRNODE_location,NODE_OFFSET
-	load	(NODE_OFFSET+CURRENT_NODE),TEMP1 ; this is a value, not a pointer.
-	movei	#_GPU_blit_destination_coordinate,TEMP2
-	store	TEMP1,(TEMP2)			 ; store the location value
-
-	movei	#_shipsheet,TEMP1 ; shipsheet is always our source
-	movei	#_GPU_blit_source,TEMP2
-	store	TEMP1,(TEMP2)	  ; store a ptr to it
-	
-	move	CURRENT_NODE,TEMP1
-	addq	#16,TEMP1
-	movei	#_GPU_blit_sprite,TEMP2
-	addq	#2,TEMP1	; interleave
-	store	TEMP1,(TEMP2)   ; and this is our sprite value
-	
-	addq	#1,SPRITE_COUNT	; debugging: index
-
-	;; TODO: JSR gpu_sprite_test
-
-	movei	#.node_loop,JUMPADDR
-	jump	t,(JUMPADDR)	; and loop again
-	nop
-.done:	
-	StopGPU
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 	.long
 _gpu_sprite_display_list::	dc.l	0 ; struct List *
@@ -227,16 +250,20 @@ _gpu_sprite_display_list::	dc.l	0 ; struct List *
 	OFFSET_SPRNODE_ln_Name	.equ	10 ; char *
 	OFFSET_SPRNODE_NODESIZE	.equ	14
 
-	OFFSET_SPRNODE_location	.equ	14 ; struct Coordinate
-	OFFSET_SPRNODE_image    .equ    18 ; struct SpriteGraphic
-	OFFSET_SPRNODE_delta	.equ    42 ; struct Coordinate
-	OFFSET_SPRNODE_isPlayer .equ	46 ; uint8
-	OFFSET_SPRNODE_padding	.equ	47 ; uint8
-	OFFSET_SPRNODE_SIZE	.equ    48
+	;; 2 bytes of padding
+	OFFSET_SPRNODE_pad1	.equ	14
+	OFFSET_SPRNODE_location	.equ	16 ; struct Coordinate
+	OFFSET_SPRNODE_image    .equ    20 ; struct SpriteGraphic
+	OFFSET_SPRNODE_delta	.equ    48 ; struct Coordinate
+	OFFSET_SPRNODE_isPlayer .equ	52 ; uint8
+	OFFSET_SPRNODE_pad2	.equ	53 ; uint8
+	OFFSET_SPRNODE_SIZE	.equ    54
 
 ;;;
 _gpu_stack::			dcb.l	32,0	;32-position stack
-_gpu_stack_end:	
+_gpu_stack_end:
+
+_gpu_register_dump::		dcb.l	32,0
 	
 	.68000 			;End section
 _gpu_sprite_program_end::

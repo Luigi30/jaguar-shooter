@@ -23,6 +23,9 @@ AS = ~/vasm/vasmjagrisc_madmac
 JAGINCLUDE = /opt/jagdev/targets/m68k-jaguar/include
 CONVERT = $(TOOLPATH)/converter.exe --target-dir images/ 
 
+GNU_CC = m68k-elf-gcc-7.2.0
+CFLAGS = -O0 -MP -MD -std=gnu11 -nostartfiles -I${VBCC}/targets/m68k-jaguar/include
+
 RMAC = ./rmac.exe
 RMACFLAGS = -i$(JAGINCLUDE)
 
