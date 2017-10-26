@@ -8,27 +8,35 @@ extern uint32_t gpu_register_dump[32];
 
 char skunkoutput[256];
 
+bool GPU_loaded = false;
+
 op_stop_object *make_stopobj() {	
   op_stop_object *stopobj = calloc(1,sizeof(op_stop_object));
   stopobj->type = STOPOBJ;
   stopobj->int_flag = 1;
   return stopobj;
 }
+op_stop_object *stopobj;
 
-bool vbl_flag = false;
+void OP_ResetObjects()
+{
+  //The height field needs to be reset each frame for each mobj. Thanks Atari.
+  mobj_background.graphic->p0.height = 200;
+  mobj_sprites.graphic->p0.height = 200;
+  mobj_font.graphic->p0.height = 200;
+
+  if(GPU_loaded)
+    GPU_START(gpu_reset_bg_tile_objects);
+
+  mobj_background.graphic->p0.data = (uint32_t)front_buffer >> 3;
+  mobj_sprites.graphic->p0.data = (uint32_t)sprite_buffer >> 3;
+  mobj_font.graphic->p0.data = (uint32_t)text_buffer >> 3;
+}
 
 uint16_t jag_custom_interrupt_handler()
 {
   if (*INT1&C_VIDENA)
     {      
-      //The height field needs to be reset each frame for each mobj. Thanks Atari.
-      mobj_background.graphic->p0.height = 200;
-      mobj_font.graphic->p0.height = 200;
-      mobj_sprites.graphic->p0.height = 200; 
-
-      mobj_background.graphic->p0.data = (uint32_t)front_buffer >> 3;
-      mobj_font.graphic->p0.data = (uint32_t)text_buffer >> 3;
-
       MMIO16(INT2) = 0;
       return C_VIDCLR;
     }
@@ -66,6 +74,8 @@ int main() {
 
   skunkCONSOLEWRITE("Uploading sprite program to GPU\n");
   GPU_LOAD_SPRITE_PROGRAM();
+
+  GPU_loaded = true;
   
   front_buffer = background_frame_0;
   back_buffer = background_frame_1;
@@ -79,8 +89,10 @@ int main() {
 
   BLIT_8x8_text_string(text_buffer, 32, 16, "                   ");
 
-  /* STOP object ends the object list */
-  op_stop_object *stopobj = make_stopobj();
+  stopobj = make_stopobj();
+
+  mobj_background.graphic = calloc(1,sizeof(op_bmp_object));
+  BG_Setup(mobj_background);
 
   /* Font bitmap thingy */
   {
@@ -138,7 +150,6 @@ int main() {
 
    /* Background */
   {
-    mobj_background.graphic = calloc(1,sizeof(op_bmp_object));
     mobj_background.objType = BITOBJ;
     mobj_background.position.x = 19;
     mobj_background.position.y = 80;
@@ -148,7 +159,7 @@ int main() {
     mobj_background.graphic->p0.type	= mobj_background.objType;	/* BITOBJ = bitmap object */
     mobj_background.graphic->p0.ypos	= mobj_background.position.y;   /* YPOS = Y position on screen "in half-lines" */
     mobj_background.graphic->p0.height  = mobj_background.pxHeight;	/* in pixels */
-    mobj_background.graphic->p0.link	= (uint32_t)mobj_font.graphic >> 3;	/* link to next object */
+    mobj_background.graphic->p0.link	= (uint32_t)mobj_sprites.graphic >> 3;	/* link to next object */
     mobj_background.graphic->p0.data	= (uint32_t)front_buffer >> 3;	/* ptr to pixel data */
     
     mobj_background.graphic->p1.xpos	= mobj_background.position.x;      /* X position on screen, -2048 to 2047 */
@@ -161,10 +172,13 @@ int main() {
     mobj_background.graphic->p1.index  = 0;
   }
 
+  mobj_bg_tiles[BACKGROUND_TILES_COUNT-1].graphic->p0.link = (uint32_t)mobj_background.graphic >> 3;
+
   skunkCONSOLEWRITE("background layer initialized\n");
   
   //Start the list here.
-  jag_attach_olp(mobj_background.graphic);
+  //jag_attach_olp(mobj_bg_tiles[0].graphic);
+  jag_attach_olp(&branch_background_row[0]);
 
   skunkCONSOLEWRITE("object list attached\n");
 		
@@ -184,8 +198,8 @@ int main() {
   list_Bullets = malloc(sizeof(struct List));
   NewList(list_Bullets);
 
-  for(int j=0;j<5;j++){
-    for(int i=0;i<10;i++){
+  for(int j=0;j<1;j++){
+    for(int i=0;i<1;i++){
       SpriteNode *node = SpriteNode_Create((Coordinate){ .x = 24*i, .y = 25*j },
 					   SPRITES_find("NME_GrayJet"),
 					   (Coordinate){ .x = 0, .y = 0 },
@@ -212,18 +226,20 @@ int main() {
     
     if(front_buffer == background_frame_0)
       {
-	front_buffer = background_frame_1;
-	back_buffer  = background_frame_0;
+	      front_buffer = background_frame_1;
+	      back_buffer  = background_frame_0;
       }
     else
       {
-	front_buffer = background_frame_0;
-	back_buffer  = background_frame_1;
+	      front_buffer = background_frame_0;
+	      back_buffer  = background_frame_1;
       }
 
     jag_wait_vbl();
+    OP_ResetObjects();
     
     clear_video_buffer(back_buffer);
+    clear_video_buffer(sprite_buffer);
 
     /* Buffer is now clear. */
     
@@ -301,11 +317,12 @@ int main() {
     //BLIT_8x8_text_string(text_buffer, 32, 16, "BLITTING");
 
     //BulletsList_Draw(list_Bullets, back_buffer);
-    SpriteList_Draw(list_Sprites, back_buffer);
+    SpriteList_Draw(list_Sprites, sprite_buffer);
 
     jag_gpu_wait();
-
     jag_wait_blitter_ready();
+
+    skunkCONSOLEWRITE("Frame\n");
 
     /*
     sprintf(skunkoutput, "R00 %08X R01 %08X R02 %08X R03 %08X\n", gpu_register_dump[0], gpu_register_dump[1], gpu_register_dump[2], gpu_register_dump[3]);

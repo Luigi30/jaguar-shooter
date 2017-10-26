@@ -9,6 +9,7 @@
 
 #include "shared.h"
 
+#include "gfx/background.h"
 #include "gfx/blit.h"
 #include "gfx/palette.h"
 #include "gfx/sprite.h"

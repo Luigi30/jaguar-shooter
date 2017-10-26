@@ -49,6 +49,8 @@ extern uint8_t gpu_sprite_program_end[];
 extern uint8_t gpu_sprite_test[];
 extern uint8_t gpu_process_sprite_list[];
 
+extern uint8_t gpu_reset_bg_tile_objects[];
+
 extern uint8_t 		*GPU_blit_destination;
 extern Coordinate 	GPU_blit_destination_coordinate;
 extern uint8_t 		*GPU_blit_source;

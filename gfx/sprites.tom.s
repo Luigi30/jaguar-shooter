@@ -21,6 +21,8 @@
 	.globl 	_back_buffer
 	.globl 	_SPRITES_LIST
 	.globl  _shipsheet
+
+	.globl	_mobj_bg_tiles	; start of the mobj_bg_tiles array
 	
 	.macro BLIT_XY x,y
 	move	\x,TEMP2
@@ -112,7 +114,7 @@ _gpu_process_sprite_list::
 	store	TEMP1,(TEMP2)	  ; store a ptr to it
 	
 	move	CURRENT_NODE,TEMP1
-	addq	#18a,TEMP1
+	addq	#18,TEMP1
 	movei	#_GPU_blit_sprite,TEMP2
 	addq	#2,TEMP1	; interleave
 	store	TEMP1,(TEMP2)   ; and this is our sprite value
@@ -176,7 +178,6 @@ _gpu_sprite_blit:
 	movei	#OFFSET_SpriteGraphic_Size,r14
 	load	(r13),r10		;fetch the pointer
 	load	(r14+r10),TEMP1		;load the Size field
-*	movei	#$00180019,TEMP1	;!!! BUG! SpriteGraphic objects aren't long-aligned and need to be. !!!
 	move	TEMP1,r17
 	move	r14,r6
 	move	r10,r16
@@ -201,7 +202,6 @@ _gpu_sprite_blit:
 	movei	#OFFSET_SpriteGraphic_Size,r14
 *	r10 still contains the correct pointer (r13)
 
-*	movei	#$00180019,TEMP1	
 	load	(r14+r10),TEMP1		;load the Size field
 	TEMP1_SWAP_WORDS		;swap hi and lo, result in TEMP2
 	movei	#$0000FFFF,TEMP1
@@ -238,8 +238,126 @@ _GPU_blit_sprite::			dc.l	0 ; pointer to SpriteGraphic
 	OFFSET_SpriteGraphic_Size	.equ	20
 	OFFSET_SpriteGraphic_END	.equ	24
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+	;;  gpu_reset_bg_tile_objects
+	;; reset the tiles to a height of 16 and pixeldata = shipsheet
+	.phrase
+_gpu_reset_bg_tile_objects::
+	FINE_SCROLLS_PER_COARSE .equr	r15
+	PHRASE2_DATA		.equr	r16
+	
+	PIXELDATA_MASK		.equr	r17
+	PIXELDATA_PTR		.equr	r18
+
+	OBJECT_INCREMENT	.equr	r19
+	BG_TILE_ARRAY		.equr	r20
+
+	YPOS_MASK		.equr	r21
+	YPOS_MASK_INVERTED	.equr	r22
+
+	PHRASE_MODIFIED		.equr	r23
+
+	BG_SCROLL_COUNT		.equr	r24
+
+	LOCK_BLITTER		
+	TAKE_BLIT_PRIORITY
+
+	movei	#16,FINE_SCROLLS_PER_COARSE
+	movei	#$000000FF,PIXELDATA_MASK
+	movei	#$00003FF8,YPOS_MASK
+	movei	#$FFFFC007,YPOS_MASK_INVERTED
+
+	movei	#_gpu_bg_fine_scroll_count,BG_SCROLL_COUNT
+	movei	#_mobj_bg_tiles,BG_TILE_ARRAY
+	addq	#5,BG_TILE_ARRAY
+	load	(BG_TILE_ARRAY),BG_TILE_ARRAY ; dereference to get the first tile
+
+	movei	#208,LOOPCOUNTER
+	movei	#reset_pixeldata,JUMPADDR
+	movei	#$44,OBJECT_INCREMENT
+	movei	#_shipsheet,PIXELDATA_PTR ; shipsheet pixel data
+
+	;; Loop through the tile objects, resetting the height to 32 units (16px) and pixeldata ptrs
+	;; TODO: set up an array that points to a tile offset in the pixel array
+reset_pixeldata:		
+	;; first phrase
+	move	PIXELDATA_PTR,TEMP1
+	shlq	#8,TEMP1	      ; PIXELDATA starts at bit 11
+	load	(BG_TILE_ARRAY),TEMP2
+	nop
+	and	PIXELDATA_MASK,TEMP2  ; mask off the old address
+	or	TEMP1,TEMP2	      ; combine with the new address
+	store	TEMP2,(BG_TILE_ARRAY) ; and store the pointer in the object
+
+	;; second phrase
+	addq	#4,BG_TILE_ARRAY ; point to the second phrase
+	load	(BG_TILE_ARRAY),PHRASE2_DATA ; keep a fresh copy of this in register
+
+reset_height:	
+	move	PHRASE2_DATA,TEMP2	
+	movei	#32,TEMP1     	; background tiles are 32 units tall
+	shlq	#13,TEMP1  	; HEIGHT starts at bit 14
+	or	TEMP1,TEMP2	; add height to the object data...
+	move	TEMP2,PHRASE_MODIFIED ;... and store it
+	store	PHRASE_MODIFIED,(BG_TILE_ARRAY)
+	
+scroll_ypos:
+	;; If bg_fine_scroll_count == 15, reset to 0 and add (2*15) to YPOS before cycling.
+	;; And move all tiles down one row. This is one coarse scroll.
+	move	PHRASE_MODIFIED,TEMP2    ; grab the new phrase again
+	move	TEMP2,r25
+	and	YPOS_MASK,TEMP2          ; mask off everything but the height
+	shrq	#3,TEMP2		 ; shift so we can use subq
+	addq	#2,TEMP2		 ; move down 1 line
+	shlq	#3,TEMP2		 ; move it back to the correct offset
+	and	YPOS_MASK,TEMP2
+	
+	move	PHRASE_MODIFIED,TEMP1
+	and	YPOS_MASK_INVERTED,TEMP1 ; mask off the height
+	or	TEMP2,TEMP1		 ; combine with the new ypos
+	move	TEMP1,r26
+	store	TEMP1,(BG_TILE_ARRAY)	 ; and write the new phrase
+	nop
+
+	;; this doesn't work
+coarse_scroll:
+	load	(BG_SCROLL_COUNT),TEMP1
+	addq	#1,TEMP1
+	cmp	FINE_SCROLLS_PER_COARSE,BG_SCROLL_COUNT
+	jr	eq,.do_coarse_scroll
+	nop
+	store	TEMP1,(BG_SCROLL_COUNT)
+	movei	#loop_check,r30
+	jump	t,(r30)
+	nop
+
+.do_coarse_scroll:
+	;; TODO: advance all tiles by 1 row
+	load	(BG_TILE_ARRAY),TEMP2    ; grab the new phrase again
+	move	TEMP2,r25
+	and	YPOS_MASK,TEMP2          ; mask off everything but the height
+	shrq	#3,TEMP2		 ; shift so we can use subq
+	subq	#32,TEMP2		 ; move up 16 lines
+	shlq	#3,TEMP2		 ; move it back to the correct offset
+	and	YPOS_MASK,TEMP2
+	store	TEMP2,(BG_TILE_ARRAY)
+	movei	#0,TEMP1
+	store	TEMP1,(BG_SCROLL_COUNT)
+	
+loop_check:	
+	sub	OBJECT_INCREMENT,BG_TILE_ARRAY ; advance to the next object
+	subq	#1,LOOPCOUNTER	  
+	cmpq	#0,LOOPCOUNTER	; are we at the end of the array?
+	jump	ne,(JUMPADDR)	; if so, we're done
+	nop
+
+.done:
+	UNLOCK_BLITTER
+	StopGPU
 
 	.long
+_gpu_bg_scroll_enabled::	dc.l	0
+_gpu_bg_fine_scroll_count:	dc.l	0 ; when this reaches 15, reset to 0.
+	
 _gpu_sprite_display_list::	dc.l	0 ; struct List *
 
 ;;; SpriteNode offset table

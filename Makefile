@@ -5,19 +5,23 @@ BINPATH = ../bin/
 OBJPATH = ../obj/
 TOOLPATH= ../tools/
 
-OBJFILES = $(OBJPATH)tyrian.o $(OBJPATH)utils/list.o $(OBJPATH)utils/list_functions.o $(OBJPATH)gfx/sprite.o $(OBJPATH)fixed.o $(OBJPATH)gfx/blit.o $(OBJPATH)bullet.o $(OBJPATH)gfx/sprites.o $(OBJPATH)mobj.o $(OBJPATH)images.o $(OBJPATH)gfx/palette.o $(OBJPATH)paldata.o
+OBJFILES = $(OBJPATH)tyrian.o $(OBJPATH)utils/list.o $(OBJPATH)utils/list_functions.o $(OBJPATH)gfx/background.o $(OBJPATH)gfx/sprite.o $(OBJPATH)fixed.o $(OBJPATH)gfx/blit.o $(OBJPATH)bullet.o $(OBJPATH)gfx/sprites.o $(OBJPATH)mobj.o $(OBJPATH)images.o $(OBJPATH)gfx/palette.o $(OBJPATH)paldata.o
 IMAGES = images/atarifont.s images/atarifont8x8.s images/shipsheet.s
 
-UNAME := $(shell uname)
-ifeq ($(findstring NT-5.1,$(VARIABLE)),CYGWIN)
-    # Found
+UNAME := $(shell uname -a)
+ROMPATH = C:\jaguar\tyrian\bin\tyrian.jag
+
+ifeq ($(findstring Microsoft,$(UNAME)),Microsoft)
+    VJAGFOLDER=/mnt/e/virtualjaguar/
+    ROMPATH=/mnt/c/jaguar/tyrian/bin/tyrian.jag
+else ifeq ($(findstring NT-5.1,$(VARIABLE)),CYGWIN)
     VJAGFOLDER=/cygdrive/e/virtualjaguar/
 else
     # Not found
     VJAGFOLDER=e:/virtualjaguar/
 endif
 
-DOCKER = docker run --rm -v c:/jaguar/tyrian/:/usr/src/compile --workdir /usr/src/compile/src toarnold/jaguarvbcc:0.9f
+DOCKER = docker.exe run --rm -v c:/jaguar/tyrian/:/usr/src/compile --workdir /usr/src/compile/src toarnold/jaguarvbcc:0.9f
 CC = vc
 AS = ~/vasm/vasmjagrisc_madmac
 JAGINCLUDE = /opt/jagdev/targets/m68k-jaguar/include
@@ -43,14 +47,14 @@ clean:
 
 run:
         #Adjust this path to your configuration.
-	$(VJAGFOLDER)virtualjaguar.exe --alpine C:\jaguar\tyrian\bin\tyrian.jag
+	$(VJAGFOLDER)virtualjaguar.exe --alpine $(ROMPATH)
 
 upload:
 	-jcp -r
 	sleep 2
 	jcp -c $(BINPATH)$(BINFILE)
 
-$(OBJPATH)%.o: %.c
+$(OBJPATH)%.o: %.c %.h
 	@mkdir -p $(@D)
 	$(DOCKER) $(CC) -I$(SRCPATH) +jaguar.cfg -c -c99 -o $@ $?
 

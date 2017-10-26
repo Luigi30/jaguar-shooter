@@ -39,8 +39,9 @@ void SpriteList_Draw(struct List *spriteList, uint8_t *buffer)
 
 /* GPU functions */
 void GPU_LOAD_SPRITE_PROGRAM() {
-  skunkCONSOLEWRITE("GPU_LOAD_SPRITE_PROGRAM(): beginning upload\n");
-  jag_dsp_load(G_RAM, gpu_sprite_program, gpu_sprite_program_end-gpu_sprite_program);
+  sprintf(skunkoutput, "GPU_LOAD_SPRITE_PROGRAM(): beginning upload of %x bytes to %06x\n", gpu_sprite_program_end-gpu_sprite_program, G_RAM);
+  skunkCONSOLEWRITE(skunkoutput);
+  memcpy(G_RAM, gpu_sprite_program, gpu_sprite_program_end-gpu_sprite_program);
   skunkCONSOLEWRITE("GPU_LOAD_SPRITE_PROGRAM(): upload complete\n");
 }
 
