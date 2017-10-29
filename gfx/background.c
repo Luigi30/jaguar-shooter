@@ -47,12 +47,13 @@ void BG_Setup(MotionObject link)
 		branch_background_row[i].type = BRANCHOBJ;
 		branch_background_row[i].link = (uint32_t)mobj_bg_tiles[(BACKGROUND_TILES_TALL-i-1) * BACKGROUND_TILES_WIDE].graphic >> 3;
 		branch_background_row[i].cc = BRANCH_CC_GT;
-		branch_background_row[i].ypos = 80 + (BACKGROUND_TILES_TALL-1 *32) + ((BACKGROUND_TILES_TALL-i) * 32);
+		branch_background_row[i].ypos = 80 + ((BACKGROUND_TILES_TALL-i) * 32) - 32;
+
 	}
 
 	branch_background_row[BACKGROUND_TILES_TALL].type = BRANCHOBJ;
 	branch_background_row[BACKGROUND_TILES_TALL].cc = BRANCH_CC_LT;
 	branch_background_row[BACKGROUND_TILES_TALL].ypos = 2047;
-	branch_background_row[BACKGROUND_TILES_TALL].link = (uint32_t)stopobj >> 3;
+	branch_background_row[BACKGROUND_TILES_TALL].link = (uint32_t)link.graphic >> 3;
 	
 }
